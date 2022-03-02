@@ -1,4 +1,9 @@
-use crate::BytesRef;
+use crate::errors::Error;
+use crate::{BytesRef, NomErr, Res};
+use nom::error::{context, ErrorKind, VerboseError, VerboseErrorKind};
+use nom::multi::length_count;
+use nom::number::complete::{be_u16, be_u8};
+use nom::sequence::{pair, tuple};
 
 #[derive(Debug, Clone)]
 pub struct Attribute {
@@ -237,11 +242,81 @@ pub enum TargetInfo {
     },
 }
 
+pub fn target_info(input: &[u8]) -> Res<&[u8], TargetInfo> {
+    context("target_info", be_u8)(input).and_then(|(next_input, target_type)| match target_type {
+        0x00 | 0x01 => {
+            let (next_input, type_parameter_index) = be_u8(next_input)?;
+            Ok((
+                next_input,
+                TargetInfo::TypeParameterTarget(type_parameter_index),
+            ))
+        }
+        0x10 => {
+            let (next_input, supertype_index) = be_u16(next_input)?;
+            Ok((next_input, TargetInfo::SupertypeTarget(supertype_index)))
+        }
+        0x11 | 0x12 => {
+            let (next_input, type_parameter_index) = be_u8(next_input)?;
+            let (next_input, bound_index) = be_u8(next_input)?;
+            Ok((
+                next_input,
+                TargetInfo::TypeParameterBoundTarget {
+                    type_parameter_index,
+                    bound_index,
+                },
+            ))
+        }
+        0x13 | 0x14 | 0x15 => Ok((next_input, TargetInfo::EmptyTarget)),
+        0x16 => {
+            let (next_input, formal_parameter_index) = be_u8(next_input)?;
+            Ok((
+                next_input,
+                TargetInfo::FormalParameterTarget(formal_parameter_index),
+            ))
+        }
+        0x17 => {
+            let (next_input, throws_type_index) = be_u16(next_input)?;
+            Ok((next_input, TargetInfo::ThrowTarget(throws_type_index)))
+        }
+        0x40 | 0x41 => {
+            let (next_input, local_vars) = length_count(be_u16, local_var)(input)?;
+            Ok((next_input, TargetInfo::LocalVarTarget(local_vars)))
+        }
+        0x42 => {
+            let (next_input, exception_table_index) = be_u16(input)?;
+            Ok((next_input, TargetInfo::CatchTarget(exception_table_index)))
+        }
+        0x43 | 0x44 | 0x45 | 0x46 => {
+            let (next_input, offset) = be_u16(input)?;
+            Ok((next_input, TargetInfo::OffsetTarget(offset)))
+        }
+        0x47 | 0x48 | 0x49 | 0x4A | 0x4B => {
+            let (next_input, offset) = be_u16(input)?;
+            let (next_input, type_argument_index) = be_u8(next_input)?;
+            Ok((
+                next_input,
+                TargetInfo::TypeArgumentTarget {
+                    offset,
+                    type_argument_index,
+                },
+            ))
+        }
+        _ => Err(NomErr::Error(VerboseError {
+            errors: vec![(input, VerboseErrorKind::Context("invalid target_type"))],
+        })),
+    })
+}
+
 #[derive(Debug, Clone)]
 pub struct TypePath {
     /// 0. type_path_kind
     /// 1. type_argument_index
     pub path: Vec<(u8, u8)>,
+}
+
+pub fn type_path(input: &[u8]) -> Res<&[u8], TypePath> {
+    context("type_path", length_count(be_u8, pair(be_u8, be_u8)))(input)
+        .map(|(next_input, path)| (next_input, TypePath { path }))
 }
 
 #[derive(Debug, Clone)]
@@ -251,14 +326,61 @@ pub struct LocalVar {
     pub index: u16,
 }
 
+pub fn local_var(input: &[u8]) -> Res<&[u8], LocalVar> {
+    context("local_var", tuple((be_u16, be_u16, be_u16)))(input).map(
+        |(next_input, (start_pc, length, index))| {
+            (
+                next_input,
+                LocalVar {
+                    start_pc,
+                    length,
+                    index,
+                },
+            )
+        },
+    )
+}
+
 #[derive(Debug, Clone)]
 pub struct BootstrapMethod {
     pub bootstrap_method_ref: u16,
     pub bootstrap_arguments: Vec<u16>,
 }
 
+pub fn bootstrap_method(input: &[u8]) -> Res<&[u8], BootstrapMethod> {
+    context(
+        "bootstrap_method",
+        pair(be_u16, length_count(be_u16, be_u16)),
+    )(input)
+    .map(
+        |(next_input, (bootstrap_method_ref, bootstrap_arguments))| {
+            (
+                next_input,
+                BootstrapMethod {
+                    bootstrap_method_ref,
+                    bootstrap_arguments,
+                },
+            )
+        },
+    )
+}
+
 #[derive(Debug, Clone)]
 pub struct MethodParameter {
     pub name_index: u16,
     pub access_flags: u16,
+}
+
+pub fn method_parameter(input: &[u8]) -> Res<&[u8], MethodParameter> {
+    context("method_parameter", pair(be_u16, be_u16))(input).map(
+        |(next_input, (name_index, access_flags))| {
+            (
+                next_input,
+                MethodParameter {
+                    name_index,
+                    access_flags,
+                },
+            )
+        },
+    )
 }
