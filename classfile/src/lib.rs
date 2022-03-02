@@ -1,19 +1,24 @@
-use std::sync::Arc;
+#[macro_use]
+extern crate nom;
+
+use crate::constant::Constant;
 use bitflags::bitflags;
 use nom::error::{ErrorKind, VerboseError};
-use crate::constant::Constant;
+use nom::Err as NomErr;
+use std::rc::Rc;
+use std::sync::Arc;
 
-mod class_file;
 mod attribute;
+mod class_file;
 mod constant;
+mod errors;
 mod field;
 mod method;
-mod errors;
 
 const MAGIC: u32 = 0xCAFEBABE;
 
-type BytesRef = Arc<Vec<u8>>;
-type ConstantPoolRef = Arc<Vec<Constant>>;
+type BytesRef = Rc<Vec<u8>>;
+type ConstantPoolRef = Rc<Vec<Constant>>;
 
 type IResult<I, O, E = (I, ErrorKind)> = Result<(I, O), NomErr<E>>;
 type Res<T, U> = IResult<T, U, VerboseError<T>>;

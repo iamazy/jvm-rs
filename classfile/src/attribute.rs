@@ -86,7 +86,6 @@ pub struct CodeAttribute {
     pub attributes: Vec<Attribute>,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct Exception {
     pub start_pc: u16,
