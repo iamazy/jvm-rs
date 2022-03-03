@@ -1,4 +1,4 @@
-use crate::{BytesRef, NomErr, Res};
+use crate::{NomErr, Res};
 use nom::bytes::complete::take;
 use nom::error::{context, VerboseError, VerboseErrorKind};
 use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u32, be_u8};
@@ -31,7 +31,7 @@ pub enum Constant {
         name_index: u16,
         descriptor_index: u16,
     },
-    Utf8(BytesRef),
+    Utf8(Vec<u8>),
     MethodHandle {
         reference_kind: u8,
         reference_index: u16,
@@ -128,7 +128,7 @@ pub fn constant(input: &[u8]) -> Res<&[u8], Constant> {
         ConstantTag::Utf8 => {
             let (next_input, length) = be_u16(next_input)?;
             let (next_input, bytes) = take(length)(next_input)?;
-            Ok((next_input, Constant::Utf8(BytesRef::new(bytes.to_vec()))))
+            Ok((next_input, Constant::Utf8(bytes.to_vec())))
         }
         ConstantTag::MethodHandle => {
             let (next_input, reference_kind) = be_u8(next_input)?;

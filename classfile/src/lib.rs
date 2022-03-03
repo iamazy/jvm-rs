@@ -17,7 +17,6 @@ mod method;
 
 const MAGIC: u32 = 0xCAFEBABE;
 
-type BytesRef = Rc<Vec<u8>>;
 type ConstantPoolRef = Rc<Vec<Constant>>;
 
 type IResult<I, O, E = (I, ErrorKind)> = Result<(I, O), NomErr<E>>;

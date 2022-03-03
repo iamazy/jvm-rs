@@ -1,9 +1,11 @@
 use crate::errors::Error;
-use crate::{BytesRef, NomErr, Res};
+use crate::{NomErr, Res};
 use nom::character::complete::char;
+use nom::combinator::{success, value};
+use nom::complete::take;
 use nom::error::{context, ErrorKind, VerboseError, VerboseErrorKind};
 use nom::multi::length_count;
-use nom::number::complete::{be_u16, be_u8};
+use nom::number::complete::{be_u16, be_u32, be_u8};
 use nom::sequence::{pair, tuple};
 use nom::Parser;
 
@@ -12,6 +14,10 @@ pub struct Attribute {
     pub attribute_name_index: u16,
     pub attribute_length: u32,
     pub attr_type: AttributeType,
+}
+
+pub fn attribute(input: &[u8]) -> Res<&[u8], Attribute> {
+    context("attribute", )
 }
 
 #[derive(Debug, Clone)]
@@ -88,9 +94,25 @@ pub enum AttributeType {
 pub struct CodeAttribute {
     pub max_stack: u16,
     pub max_locals: u16,
-    pub code: BytesRef,
+    pub code: Vec<u8>,
     pub exception_table: Vec<Exception>,
     pub attributes: Vec<Attribute>,
+}
+
+pub fn code_attribute(input: &[u8]) -> Res<&[u8], CodeAttribute> {
+    context("code attribute", tuple((be_u16, be_u16,
+                                     length_count(be_u32, be_u8),
+                                     length_count(be_u16, exception),
+                                     length_count(be_u16, attribute))))(input)
+        .map(|(next_input, (max_stack, max_locals, code, exception_table, attributes))| {
+            (next_input, CodeAttribute {
+                max_stack,
+                max_locals,
+                code,
+                exception_table,
+                attributes,
+            })
+        })
 }
 
 #[derive(Debug, Clone)]
@@ -99,6 +121,24 @@ pub struct Exception {
     pub end_pc: u16,
     pub handler_pc: u16,
     pub catch_type: u16,
+}
+
+pub fn exception(input: &[u8]) -> Res<&[u8], Exception> {
+    context("exception", tuple((be_u16, be_u16, be_u16, be_u16)))(input)
+        .map(|(next_input, (start_pc, end_pc, handler_pc, catch_type))| {
+            (next_input, Exception {
+                start_pc,
+                end_pc,
+                handler_pc,
+                catch_type,
+            })
+        })
+}
+
+#[derive(Debug, Clone)]
+pub struct StackMap {
+    frame_type: u8,
+    frame: StackMapFrame,
 }
 
 #[derive(Debug, Clone)]
@@ -128,35 +168,29 @@ pub enum StackMapFrame {
     },
 }
 
-#[derive(Debug, Clone)]
-pub struct StackMap {
-    frame_type: u8,
-    frame: StackMapFrame,
-}
-
 pub fn stack_map(input: &[u8]) -> Res<&[u8], StackMap> {
-    context("stack_map", be_u8)(input).map(|(next_input, frame_type)| match frame_type {
-        0..=63 => (
+    context("stack map", be_u8)(input).and_then(|(next_input, frame_type)| match frame_type {
+        0..=63 => Ok((
             next_input,
             StackMap {
                 frame_type,
                 frame: StackMapFrame::SameFrame,
             },
-        ),
+        )),
         64..=127 => {
             let (next_input, stack) = verification_type_info(next_input)?;
-            (
+            Ok((
                 next_input,
                 StackMap {
                     frame_type,
                     frame: StackMapFrame::SameLocals1StackItemFrame { stack },
                 },
-            )
+            ))
         }
         247 => {
             let (next_input, offset_delta) = be_u16(next_input)?;
             let (next_input, stack) = verification_type_info(next_input)?;
-            (
+            Ok((
                 next_input,
                 StackMap {
                     frame_type,
@@ -165,8 +199,49 @@ pub fn stack_map(input: &[u8]) -> Res<&[u8], StackMap> {
                         stack,
                     },
                 },
-            )
+            ))
         }
+        248..=250 => {
+            let (next_input, offset_delta) = be_u16(next_input)?;
+            Ok((next_input, StackMap {
+                frame_type,
+                frame: StackMapFrame::ChopFrame { offset_delta },
+            }))
+        }
+        251 => {
+            let (next_input, offset_delta) = be_u16(next_input)?;
+            Ok((next_input, StackMap {
+                frame_type,
+                frame: StackMapFrame::SameFrameExtended { offset_delta },
+            }))
+        }
+        252..=254 => {
+            let (mut next_input, offset_delta) = be_u16(next_input)?;
+            let (mut next_input, locals) = length_count(success(frame_type - 251), verification_type_info)(next_input)?;
+            Ok((next_input, StackMap {
+                frame_type,
+                frame: StackMapFrame::AppendFrame {
+                    offset_delta,
+                    locals,
+                },
+            }))
+        }
+        255 => {
+            let (next_input, offset_delta) = be_u16(next_input)?;
+            let (next_input, locals) = length_count(be_u16, verification_type_info)(next_input)?;
+            let (next_input, stack) = length_count(be_u16, verification_type_info)(next_input)?;
+            Ok((next_input, StackMap {
+                frame_type,
+                frame: StackMapFrame::FullFrame {
+                    offset_delta,
+                    locals,
+                    stack,
+                },
+            }))
+        }
+        _ => Err(NomErr::Error(VerboseError {
+            errors: vec![(input, VerboseErrorKind::Context("invalid frame type"))],
+        })),
     })
 }
 
@@ -184,25 +259,25 @@ pub enum VerificationTypeInfo {
 }
 
 pub fn verification_type_info(input: &[u8]) -> Res<&[u8], VerificationTypeInfo> {
-    context("verification_type_info", be_u8)(input).map(|(next_input, tag)| match tag {
-        0 => (next_input, VerificationTypeInfo::Top),
-        1 => (next_input, VerificationTypeInfo::Integer),
-        2 => (next_input, VerificationTypeInfo::Float),
-        3 => (next_input, VerificationTypeInfo::Long),
-        4 => (next_input, VerificationTypeInfo::Double),
-        5 => (next_input, VerificationTypeInfo::Null),
-        6 => (next_input, VerificationTypeInfo::UninitializedThis),
+    context("verification type info", be_u8)(input).and_then(|(next_input, tag)| match tag {
+        0 => Ok((next_input, VerificationTypeInfo::Top)),
+        1 => Ok((next_input, VerificationTypeInfo::Integer)),
+        2 => Ok((next_input, VerificationTypeInfo::Float)),
+        3 => Ok((next_input, VerificationTypeInfo::Long)),
+        4 => Ok((next_input, VerificationTypeInfo::Double)),
+        5 => Ok((next_input, VerificationTypeInfo::Null)),
+        6 => Ok((next_input, VerificationTypeInfo::UninitializedThis)),
         7 => {
             let (next_input, cpool_index) = be_u16(next_input)?;
-            (next_input, VerificationTypeInfo::Object { cpool_index })
+            Ok((next_input, VerificationTypeInfo::Object { cpool_index }))
         }
         8 => {
             let (next_input, offset) = be_u16(next_input)?;
-            (next_input, VerificationTypeInfo::Uninitialized { offset })
+            Ok((next_input, VerificationTypeInfo::Uninitialized { offset }))
         }
-        _ => Err(NomErr::Error(Error::from_verbose_error(VerboseError {
+        _ => Err(NomErr::Error(VerboseError {
             errors: vec![(input, VerboseErrorKind::Char(tag as char))],
-        }))),
+        })),
     })
 }
 
@@ -215,16 +290,16 @@ pub struct InnerClass {
 }
 
 pub fn inner_class(input: &[u8]) -> Res<&[u8], InnerClass> {
-    context("inner_class", tuple((be_u16, be_u16, be_u16, be_u16)))(input).map(
+    context("inner class", tuple((be_u16, be_u16, be_u16, be_u16)))(input).map(
         |(
-            next_input,
-            (
-                inner_class_info_index,
-                outer_class_info_index,
-                inner_name_index,
-                inner_class_access_flags,
-            ),
-        )| {
+             next_input,
+             (
+                 inner_class_info_index,
+                 outer_class_info_index,
+                 inner_name_index,
+                 inner_class_access_flags,
+             ),
+         )| {
             (
                 next_input,
                 InnerClass {
@@ -245,7 +320,7 @@ pub struct LineNumber {
 }
 
 pub fn line_number(input: &[u8]) -> Res<&[u8], LineNumber> {
-    context("line_number", pair(be_u16, be_u16))(input).map(
+    context("line number", pair(be_u16, be_u16))(input).map(
         |(next_input, (start_pc, line_number))| {
             (
                 next_input,
@@ -269,23 +344,23 @@ pub struct LocalVariable {
 
 pub fn local_variable(input: &[u8]) -> Res<&[u8], LocalVariable> {
     context(
-        "local_variable",
+        "local variable",
         tuple((be_u16, be_u16, be_u16, be_u16, be_u16)),
     )(input)
-    .map(
-        |(next_input, (start_pc, length, name_index, descriptor_index, index))| {
-            (
-                next_input,
-                LocalVariable {
-                    start_pc,
-                    length,
-                    name_index,
-                    descriptor_index,
-                    index,
-                },
-            )
-        },
-    )
+        .map(
+            |(next_input, (start_pc, length, name_index, descriptor_index, index))| {
+                (
+                    next_input,
+                    LocalVariable {
+                        start_pc,
+                        length,
+                        name_index,
+                        descriptor_index,
+                        index,
+                    },
+                )
+            },
+        )
 }
 
 #[derive(Debug, Clone)]
@@ -299,23 +374,23 @@ pub struct LocalVariableType {
 
 pub fn local_variable_type(input: &[u8]) -> Res<&[u8], LocalVariableType> {
     context(
-        "local_variable_type",
+        "local variable type",
         tuple((be_u16, be_u16, be_u16, be_u16, be_u16)),
     )(input)
-    .map(
-        |(next_input, (start_pc, length, name_index, signature_index, index))| {
-            (
-                next_input,
-                LocalVariableType {
-                    start_pc,
-                    length,
-                    name_index,
-                    signature_index,
-                    index,
-                },
-            )
-        },
-    )
+        .map(
+            |(next_input, (start_pc, length, name_index, signature_index, index))| {
+                (
+                    next_input,
+                    LocalVariableType {
+                        start_pc,
+                        length,
+                        name_index,
+                        signature_index,
+                        index,
+                    },
+                )
+            },
+        )
 }
 
 #[derive(Debug, Clone)]
@@ -331,15 +406,15 @@ pub fn annotation(input: &[u8]) -> Res<&[u8], Annotation> {
         "annotation",
         pair(be_u16, length_count(be_u16, pair(be_u16, element_value))),
     )(input)
-    .map(|(next_input, (type_index, element_value_pairs))| {
-        (
-            next_input,
-            Annotation {
-                type_index,
-                element_value_pairs,
-            },
-        )
-    })
+        .map(|(next_input, (type_index, element_value_pairs))| {
+            (
+                next_input,
+                Annotation {
+                    type_index,
+                    element_value_pairs,
+                },
+            )
+        })
 }
 
 #[derive(Debug, Clone)]
@@ -349,7 +424,7 @@ pub struct ElementValue {
 }
 
 pub fn element_value(input: &[u8]) -> Res<&[u8], ElementValue> {
-    context("element_value", be_u8)(input).and_then(|(next_input, tag)| match tag {
+    context("element value", be_u8)(input).and_then(|(next_input, tag)| match tag {
         b'B' | b'C' | b'D' | b'F' | b'I' | b'J' | b'S' | b'Z' | b's' => {
             let (next_input, value) = be_u16(next_input)?;
             Ok((
@@ -424,7 +499,7 @@ pub struct ParameterAnnotation {
 }
 
 pub fn parameter_annotation(input: &[u8]) -> Res<&[u8], ParameterAnnotation> {
-    context("parameter_annotation", length_count(be_u16, annotation))(input)
+    context("parameter annotation", length_count(be_u16, annotation))(input)
         .map(|(next_input, annotations)| (next_input, ParameterAnnotation { annotations }))
 }
 
@@ -439,7 +514,7 @@ pub struct TypeAnnotation {
 
 pub fn type_annotation(input: &[u8]) -> Res<&[u8], TypeAnnotation> {
     context(
-        "type_annotation",
+        "type annotation",
         tuple((
             target_info,
             type_path,
@@ -447,20 +522,20 @@ pub fn type_annotation(input: &[u8]) -> Res<&[u8], TypeAnnotation> {
             length_count(be_u16, pair(be_u16, element_value)),
         )),
     )(input)
-    .map(
-        |(next_input, ((target_type, target_info), type_path, type_index, element_value_pairs))| {
-            (
-                next_input,
-                TypeAnnotation {
-                    target_type,
-                    target_info,
-                    type_path,
-                    type_index,
-                    element_value_pairs,
-                },
-            )
-        },
-    )
+        .map(
+            |(next_input, ((target_type, target_info), type_path, type_index, element_value_pairs))| {
+                (
+                    next_input,
+                    TypeAnnotation {
+                        target_type,
+                        target_info,
+                        type_path,
+                        type_index,
+                        element_value_pairs,
+                    },
+                )
+            },
+        )
 }
 
 #[derive(Debug, Clone)]
@@ -490,7 +565,7 @@ pub enum TargetInfo {
 }
 
 pub fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
-    context("target_info", be_u8)(input).and_then(|(next_input, target_type)| match target_type {
+    context("target info", be_u8)(input).and_then(|(next_input, target_type)| match target_type {
         0x00 | 0x01 => {
             let (next_input, type_parameter_index) = be_u8(next_input)?;
             Ok((
@@ -586,7 +661,7 @@ pub struct TypePath {
 }
 
 pub fn type_path(input: &[u8]) -> Res<&[u8], TypePath> {
-    context("type_path", length_count(be_u8, pair(be_u8, be_u8)))(input)
+    context("type path", length_count(be_u8, pair(be_u8, be_u8)))(input)
         .map(|(next_input, path)| (next_input, TypePath { path }))
 }
 
@@ -598,7 +673,7 @@ pub struct LocalVar {
 }
 
 pub fn local_var(input: &[u8]) -> Res<&[u8], LocalVar> {
-    context("local_var", tuple((be_u16, be_u16, be_u16)))(input).map(
+    context("local var", tuple((be_u16, be_u16, be_u16)))(input).map(
         |(next_input, (start_pc, length, index))| {
             (
                 next_input,
@@ -620,20 +695,20 @@ pub struct BootstrapMethod {
 
 pub fn bootstrap_method(input: &[u8]) -> Res<&[u8], BootstrapMethod> {
     context(
-        "bootstrap_method",
+        "bootstrap method",
         pair(be_u16, length_count(be_u16, be_u16)),
     )(input)
-    .map(
-        |(next_input, (bootstrap_method_ref, bootstrap_arguments))| {
-            (
-                next_input,
-                BootstrapMethod {
-                    bootstrap_method_ref,
-                    bootstrap_arguments,
-                },
-            )
-        },
-    )
+        .map(
+            |(next_input, (bootstrap_method_ref, bootstrap_arguments))| {
+                (
+                    next_input,
+                    BootstrapMethod {
+                        bootstrap_method_ref,
+                        bootstrap_arguments,
+                    },
+                )
+            },
+        )
 }
 
 #[derive(Debug, Clone)]
@@ -643,7 +718,7 @@ pub struct MethodParameter {
 }
 
 pub fn method_parameter(input: &[u8]) -> Res<&[u8], MethodParameter> {
-    context("method_parameter", pair(be_u16, be_u16))(input).map(
+    context("method parameter", pair(be_u16, be_u16))(input).map(
         |(next_input, (name_index, access_flags))| {
             (
                 next_input,
