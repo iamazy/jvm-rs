@@ -92,7 +92,7 @@ where
     move |input: &'a [u8]| {
         let (input, attribute_name_index) = be_u16(input)?;
         let (input, attribute_length) = be_u32(input)?;
-        let attribute_name = get_utf8(constant_pool.clone(), (attribute_name_index - 1) as usize);
+        let attribute_name = get_utf8(constant_pool.clone(), attribute_name_index as usize);
         let attribute_name = attribute_name.as_slice();
         let (input, attr_type) = match attribute_name {
             b"ConstantValue" => {

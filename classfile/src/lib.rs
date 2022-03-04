@@ -1,6 +1,7 @@
 use crate::constant::Constant;
 use bitflags::bitflags;
 use nom::error::{ErrorKind, VerboseError};
+use nom::number::complete::be_i16;
 use nom::Err as NomErr;
 use std::rc::Rc;
 
