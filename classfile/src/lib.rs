@@ -1,12 +1,8 @@
-#[macro_use]
-extern crate nom;
-
 use crate::constant::Constant;
 use bitflags::bitflags;
 use nom::error::{ErrorKind, VerboseError};
 use nom::Err as NomErr;
 use std::rc::Rc;
-use std::sync::Arc;
 
 mod attribute;
 mod class_file;
@@ -17,10 +13,18 @@ mod method;
 
 const MAGIC: u32 = 0xCAFEBABE;
 
+type BytesRef = Rc<Vec<u8>>;
 type ConstantPoolRef = Rc<Vec<Constant>>;
 
 type IResult<I, O, E = (I, ErrorKind)> = Result<(I, O), NomErr<E>>;
 type Res<T, U> = IResult<T, U, VerboseError<T>>;
+
+pub fn get_utf8(constant_pool: ConstantPoolRef, index: usize) -> BytesRef {
+    match constant_pool.get(index - 1) {
+        Some(Constant::Utf8(bytes)) => bytes.clone(),
+        _ => unreachable!(),
+    }
+}
 
 bitflags! {
     struct AccessFlag: u16 {

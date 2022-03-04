@@ -1,23 +1,16 @@
-use crate::errors::Error;
-use crate::{NomErr, Res};
-use nom::character::complete::char;
-use nom::combinator::{success, value};
-use nom::complete::take;
-use nom::error::{context, ErrorKind, VerboseError, VerboseErrorKind};
+use crate::{get_utf8, ConstantPoolRef, NomErr, Res};
+use nom::combinator::success;
+use nom::error::{context, ParseError, VerboseError, VerboseErrorKind};
 use nom::multi::length_count;
 use nom::number::complete::{be_u16, be_u32, be_u8};
 use nom::sequence::{pair, tuple};
-use nom::Parser;
+use nom::IResult;
 
 #[derive(Debug, Clone)]
 pub struct Attribute {
     pub attribute_name_index: u16,
     pub attribute_length: u32,
-    pub attr_type: AttributeType,
-}
-
-pub fn attribute(input: &[u8]) -> Res<&[u8], Attribute> {
-    context("attribute", )
+    pub attribute_type: AttributeType,
 }
 
 #[derive(Debug, Clone)]
@@ -90,6 +83,173 @@ pub enum AttributeType {
     },
 }
 
+pub fn attribute<'a, E: ParseError<&'a [u8]>>(
+    constant_pool: ConstantPoolRef,
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Attribute, E>
+where
+    nom::Err<E>: From<nom::Err<VerboseError<&'a [u8]>>>,
+{
+    move |input: &'a [u8]| {
+        let (input, attribute_name_index) = be_u16(input)?;
+        let (input, attribute_length) = be_u32(input)?;
+        let attribute_name = get_utf8(constant_pool.clone(), (attribute_name_index - 1) as usize);
+        let attribute_name = attribute_name.as_slice();
+        let (input, attr_type) = match attribute_name {
+            b"ConstantValue" => {
+                let (input, constant_value_index) = be_u16(input)?;
+                (
+                    input,
+                    AttributeType::ConstantValue {
+                        constant_value_index,
+                    },
+                )
+            }
+            b"Code" => {
+                let (input, code) = code_attribute(constant_pool.clone())(input)?;
+                (input, AttributeType::Code { code })
+            }
+            b"StackMapTable" => {
+                let (input, entries) = length_count(be_u16, stack_map)(input)?;
+                (input, AttributeType::StackMapTable { entries })
+            }
+            b"Exceptions" => {
+                let (input, exception_index_table) = length_count(be_u16, be_u16)(input)?;
+                (
+                    input,
+                    AttributeType::Exceptions {
+                        exception_index_table,
+                    },
+                )
+            }
+            b"InnerClasses" => {
+                let (input, classes) = length_count(be_u16, inner_class)(input)?;
+                (input, AttributeType::InnerClasses { classes })
+            }
+            b"EnclosingMethod" => {
+                let (input, class_index) = be_u16(input)?;
+                let (input, method_index) = be_u16(input)?;
+                (
+                    input,
+                    AttributeType::EnclosingMethod {
+                        class_index,
+                        method_index,
+                    },
+                )
+            }
+            b"Synthetic" => (input, AttributeType::Synthetic),
+            b"Signature" => {
+                let (input, signature_index) = be_u16(input)?;
+                (input, AttributeType::Signature { signature_index })
+            }
+            b"SourceFile" => {
+                let (input, sourcefile_index) = be_u16(input)?;
+                (input, AttributeType::SourceFile { sourcefile_index })
+            }
+            b"SourceDebugExtension" => {
+                let (input, debug_extension) =
+                    length_count(success(attribute_length), be_u8)(input)?;
+                (
+                    input,
+                    AttributeType::SourceDebugExtension { debug_extension },
+                )
+            }
+            b"LineNumberTable" => {
+                let (input, line_number_table) = length_count(be_u16, line_number)(input)?;
+                (input, AttributeType::LineNumberTable { line_number_table })
+            }
+            b"LocalVariableTable" => {
+                let (input, local_variable_table) = length_count(be_u16, local_variable)(input)?;
+                (
+                    input,
+                    AttributeType::LocalVariableTable {
+                        local_variable_table,
+                    },
+                )
+            }
+            b"LocalVariableTypeTable" => {
+                let (input, local_variable_type_table) =
+                    length_count(be_u16, local_variable_type)(input)?;
+                (
+                    input,
+                    AttributeType::LocalVariableTypeTable {
+                        local_variable_type_table,
+                    },
+                )
+            }
+            b"Deprecated" => (input, AttributeType::Deprecated),
+            b"RuntimeVisibleAnnotations" => {
+                let (input, annotations) = length_count(be_u16, annotation)(input)?;
+                (
+                    input,
+                    AttributeType::RuntimeVisibleAnnotations { annotations },
+                )
+            }
+            b"RuntimeInvisibleAnnotations" => {
+                let (input, annotations) = length_count(be_u16, annotation)(input)?;
+                (
+                    input,
+                    AttributeType::RuntimeInvisibleAnnotations { annotations },
+                )
+            }
+            b"RuntimeVisibleParameterAnnotations" => {
+                let (input, parameter_annotations) =
+                    length_count(be_u8, parameter_annotation)(input)?;
+                (
+                    input,
+                    AttributeType::RuntimeVisibleParameterAnnotations {
+                        parameter_annotations,
+                    },
+                )
+            }
+            b"RuntimeInvisibleParameterAnnotations" => {
+                let (input, parameter_annotations) =
+                    length_count(be_u8, parameter_annotation)(input)?;
+                (
+                    input,
+                    AttributeType::RuntimeInvisibleParameterAnnotations {
+                        parameter_annotations,
+                    },
+                )
+            }
+            b"RuntimeVisibleTypeAnnotations" => {
+                let (input, annotations) = length_count(be_u8, type_annotation)(input)?;
+                (
+                    input,
+                    AttributeType::RuntimeVisibleTypeAnnotations { annotations },
+                )
+            }
+            b"RuntimeInvisibleTypeAnnotations" => {
+                let (input, annotations) = length_count(be_u8, type_annotation)(input)?;
+                (
+                    input,
+                    AttributeType::RuntimeInvisibleTypeAnnotations { annotations },
+                )
+            }
+            b"AnnotationDefault" => {
+                let (input, default_value) = element_value(input)?;
+                (input, AttributeType::AnnotationDefault { default_value })
+            }
+            b"BootstrapMethods" => {
+                let (input, bootstrap_methods) = length_count(be_u16, bootstrap_method)(input)?;
+                (input, AttributeType::BootstrapMethods { bootstrap_methods })
+            }
+            b"MethodParameters" => {
+                let (input, parameters) = length_count(be_u16, method_parameter)(input)?;
+                (input, AttributeType::MethodParameters { parameters })
+            }
+            _ => unreachable!("unexpected attribute type"),
+        };
+        Ok((
+            input,
+            Attribute {
+                attribute_name_index,
+                attribute_length,
+                attribute_type: attr_type,
+            },
+        ))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CodeAttribute {
     pub max_stack: u16,
@@ -99,20 +259,29 @@ pub struct CodeAttribute {
     pub attributes: Vec<Attribute>,
 }
 
-pub fn code_attribute(input: &[u8]) -> Res<&[u8], CodeAttribute> {
-    context("code attribute", tuple((be_u16, be_u16,
-                                     length_count(be_u32, be_u8),
-                                     length_count(be_u16, exception),
-                                     length_count(be_u16, attribute))))(input)
-        .map(|(next_input, (max_stack, max_locals, code, exception_table, attributes))| {
-            (next_input, CodeAttribute {
+pub fn code_attribute<'a, E: ParseError<&'a [u8]>>(
+    constant_pool: ConstantPoolRef,
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CodeAttribute, E>
+where
+    nom::Err<E>: From<nom::Err<VerboseError<&'a [u8]>>>,
+{
+    move |input: &[u8]| {
+        let (input, max_stack) = be_u16(input)?;
+        let (input, max_locals) = be_u16(input)?;
+        let (input, code) = length_count(be_u32, be_u8)(input)?;
+        let (input, exception_table) = length_count(be_u16, exception)(input)?;
+        let (input, attributes) = length_count(be_u16, attribute(constant_pool.clone()))(input)?;
+        Ok((
+            input,
+            CodeAttribute {
                 max_stack,
                 max_locals,
                 code,
                 exception_table,
                 attributes,
-            })
-        })
+            },
+        ))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -124,15 +293,19 @@ pub struct Exception {
 }
 
 pub fn exception(input: &[u8]) -> Res<&[u8], Exception> {
-    context("exception", tuple((be_u16, be_u16, be_u16, be_u16)))(input)
-        .map(|(next_input, (start_pc, end_pc, handler_pc, catch_type))| {
-            (next_input, Exception {
-                start_pc,
-                end_pc,
-                handler_pc,
-                catch_type,
-            })
-        })
+    context("exception", tuple((be_u16, be_u16, be_u16, be_u16)))(input).map(
+        |(next_input, (start_pc, end_pc, handler_pc, catch_type))| {
+            (
+                next_input,
+                Exception {
+                    start_pc,
+                    end_pc,
+                    handler_pc,
+                    catch_type,
+                },
+            )
+        },
+    )
 }
 
 #[derive(Debug, Clone)]
@@ -203,41 +376,54 @@ pub fn stack_map(input: &[u8]) -> Res<&[u8], StackMap> {
         }
         248..=250 => {
             let (next_input, offset_delta) = be_u16(next_input)?;
-            Ok((next_input, StackMap {
-                frame_type,
-                frame: StackMapFrame::ChopFrame { offset_delta },
-            }))
+            Ok((
+                next_input,
+                StackMap {
+                    frame_type,
+                    frame: StackMapFrame::ChopFrame { offset_delta },
+                },
+            ))
         }
         251 => {
             let (next_input, offset_delta) = be_u16(next_input)?;
-            Ok((next_input, StackMap {
-                frame_type,
-                frame: StackMapFrame::SameFrameExtended { offset_delta },
-            }))
+            Ok((
+                next_input,
+                StackMap {
+                    frame_type,
+                    frame: StackMapFrame::SameFrameExtended { offset_delta },
+                },
+            ))
         }
         252..=254 => {
-            let (mut next_input, offset_delta) = be_u16(next_input)?;
-            let (mut next_input, locals) = length_count(success(frame_type - 251), verification_type_info)(next_input)?;
-            Ok((next_input, StackMap {
-                frame_type,
-                frame: StackMapFrame::AppendFrame {
-                    offset_delta,
-                    locals,
+            let (next_input, offset_delta) = be_u16(next_input)?;
+            let (next_input, locals) =
+                length_count(success(frame_type - 251), verification_type_info)(next_input)?;
+            Ok((
+                next_input,
+                StackMap {
+                    frame_type,
+                    frame: StackMapFrame::AppendFrame {
+                        offset_delta,
+                        locals,
+                    },
                 },
-            }))
+            ))
         }
         255 => {
             let (next_input, offset_delta) = be_u16(next_input)?;
             let (next_input, locals) = length_count(be_u16, verification_type_info)(next_input)?;
             let (next_input, stack) = length_count(be_u16, verification_type_info)(next_input)?;
-            Ok((next_input, StackMap {
-                frame_type,
-                frame: StackMapFrame::FullFrame {
-                    offset_delta,
-                    locals,
-                    stack,
+            Ok((
+                next_input,
+                StackMap {
+                    frame_type,
+                    frame: StackMapFrame::FullFrame {
+                        offset_delta,
+                        locals,
+                        stack,
+                    },
                 },
-            }))
+            ))
         }
         _ => Err(NomErr::Error(VerboseError {
             errors: vec![(input, VerboseErrorKind::Context("invalid frame type"))],
@@ -292,14 +478,14 @@ pub struct InnerClass {
 pub fn inner_class(input: &[u8]) -> Res<&[u8], InnerClass> {
     context("inner class", tuple((be_u16, be_u16, be_u16, be_u16)))(input).map(
         |(
-             next_input,
-             (
-                 inner_class_info_index,
-                 outer_class_info_index,
-                 inner_name_index,
-                 inner_class_access_flags,
-             ),
-         )| {
+            next_input,
+            (
+                inner_class_info_index,
+                outer_class_info_index,
+                inner_name_index,
+                inner_class_access_flags,
+            ),
+        )| {
             (
                 next_input,
                 InnerClass {
@@ -347,20 +533,20 @@ pub fn local_variable(input: &[u8]) -> Res<&[u8], LocalVariable> {
         "local variable",
         tuple((be_u16, be_u16, be_u16, be_u16, be_u16)),
     )(input)
-        .map(
-            |(next_input, (start_pc, length, name_index, descriptor_index, index))| {
-                (
-                    next_input,
-                    LocalVariable {
-                        start_pc,
-                        length,
-                        name_index,
-                        descriptor_index,
-                        index,
-                    },
-                )
-            },
-        )
+    .map(
+        |(next_input, (start_pc, length, name_index, descriptor_index, index))| {
+            (
+                next_input,
+                LocalVariable {
+                    start_pc,
+                    length,
+                    name_index,
+                    descriptor_index,
+                    index,
+                },
+            )
+        },
+    )
 }
 
 #[derive(Debug, Clone)]
@@ -377,20 +563,20 @@ pub fn local_variable_type(input: &[u8]) -> Res<&[u8], LocalVariableType> {
         "local variable type",
         tuple((be_u16, be_u16, be_u16, be_u16, be_u16)),
     )(input)
-        .map(
-            |(next_input, (start_pc, length, name_index, signature_index, index))| {
-                (
-                    next_input,
-                    LocalVariableType {
-                        start_pc,
-                        length,
-                        name_index,
-                        signature_index,
-                        index,
-                    },
-                )
-            },
-        )
+    .map(
+        |(next_input, (start_pc, length, name_index, signature_index, index))| {
+            (
+                next_input,
+                LocalVariableType {
+                    start_pc,
+                    length,
+                    name_index,
+                    signature_index,
+                    index,
+                },
+            )
+        },
+    )
 }
 
 #[derive(Debug, Clone)]
@@ -406,15 +592,15 @@ pub fn annotation(input: &[u8]) -> Res<&[u8], Annotation> {
         "annotation",
         pair(be_u16, length_count(be_u16, pair(be_u16, element_value))),
     )(input)
-        .map(|(next_input, (type_index, element_value_pairs))| {
-            (
-                next_input,
-                Annotation {
-                    type_index,
-                    element_value_pairs,
-                },
-            )
-        })
+    .map(|(next_input, (type_index, element_value_pairs))| {
+        (
+            next_input,
+            Annotation {
+                type_index,
+                element_value_pairs,
+            },
+        )
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -522,20 +708,20 @@ pub fn type_annotation(input: &[u8]) -> Res<&[u8], TypeAnnotation> {
             length_count(be_u16, pair(be_u16, element_value)),
         )),
     )(input)
-        .map(
-            |(next_input, ((target_type, target_info), type_path, type_index, element_value_pairs))| {
-                (
-                    next_input,
-                    TypeAnnotation {
-                        target_type,
-                        target_info,
-                        type_path,
-                        type_index,
-                        element_value_pairs,
-                    },
-                )
-            },
-        )
+    .map(
+        |(next_input, ((target_type, target_info), type_path, type_index, element_value_pairs))| {
+            (
+                next_input,
+                TypeAnnotation {
+                    target_type,
+                    target_info,
+                    type_path,
+                    type_index,
+                    element_value_pairs,
+                },
+            )
+        },
+    )
 }
 
 #[derive(Debug, Clone)]
@@ -698,17 +884,17 @@ pub fn bootstrap_method(input: &[u8]) -> Res<&[u8], BootstrapMethod> {
         "bootstrap method",
         pair(be_u16, length_count(be_u16, be_u16)),
     )(input)
-        .map(
-            |(next_input, (bootstrap_method_ref, bootstrap_arguments))| {
-                (
-                    next_input,
-                    BootstrapMethod {
-                        bootstrap_method_ref,
-                        bootstrap_arguments,
-                    },
-                )
-            },
-        )
+    .map(
+        |(next_input, (bootstrap_method_ref, bootstrap_arguments))| {
+            (
+                next_input,
+                BootstrapMethod {
+                    bootstrap_method_ref,
+                    bootstrap_arguments,
+                },
+            )
+        },
+    )
 }
 
 #[derive(Debug, Clone)]
