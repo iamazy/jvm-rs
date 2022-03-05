@@ -70,3 +70,28 @@ pub enum ConstantTag {
     Module,
     Package,
 }
+
+impl From<u8> for ConstantTag {
+    fn from(tag: u8) -> Self {
+        match tag {
+            7 => ConstantTag::Class,
+            9 => ConstantTag::FieldRef,
+            10 => ConstantTag::MethodRef,
+            11 => ConstantTag::InterfaceMethodRef,
+            8 => ConstantTag::String,
+            3 => ConstantTag::Integer,
+            4 => ConstantTag::Float,
+            5 => ConstantTag::Long,
+            6 => ConstantTag::Double,
+            12 => ConstantTag::NameAndType,
+            1 => ConstantTag::Utf8,
+            15 => ConstantTag::MethodHandle,
+            16 => ConstantTag::MethodType,
+            17 => ConstantTag::Dynamic,
+            18 => ConstantTag::InvokeDynamic,
+            19 => ConstantTag::Module,
+            20 => ConstantTag::Package,
+            _ => panic!("unknown constant tag: {}", tag),
+        }
+    }
+}

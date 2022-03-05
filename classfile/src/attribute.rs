@@ -73,6 +73,34 @@ pub enum AttributeType {
     MethodParameters {
         parameters: Vec<MethodParameter>,
     },
+    Module {
+        module_name_index: u16,
+        module_flags: u16,
+        module_version_index: u16,
+        requires: Vec<Require>,
+        exports: Vec<Export>,
+        opens: Vec<Open>,
+        uses: Vec<u16>,
+        provides: Vec<Provide>,
+    },
+    ModulePackages {
+        package_index: Vec<u16>,
+    },
+    ModuleMainClass {
+        main_class_index: u16,
+    },
+    NestHost {
+        host_class_index: u16,
+    },
+    NestMembers {
+        classes: Vec<u16>,
+    },
+    Record {
+        components: Vec<RecordComponent>,
+    },
+    PermittedSubclasses {
+        classes: Vec<u16>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -94,8 +122,8 @@ pub struct Exception {
 
 #[derive(Debug, Clone)]
 pub struct StackMap {
-    pub(crate) frame_type: u8,
-    pub(crate) frame: StackMapFrame,
+    pub frame_type: u8,
+    pub frame: StackMapFrame,
 }
 
 #[derive(Debug, Clone)]
@@ -197,7 +225,7 @@ pub enum Element {
 
 #[derive(Debug, Clone)]
 pub struct ParameterAnnotation {
-    pub(crate) annotations: Vec<Annotation>,
+    pub annotations: Vec<Annotation>,
 }
 
 #[derive(Debug, Clone)]
@@ -259,4 +287,38 @@ pub struct BootstrapMethod {
 pub struct MethodParameter {
     pub name_index: u16,
     pub access_flags: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct Require {
+    pub require_index: u16,
+    pub require_flags: u16,
+    pub require_version_index: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct Export {
+    pub export_index: u16,
+    pub export_flags: u16,
+    pub export_to_index: Vec<u16>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Open {
+    pub open_index: u16,
+    pub open_flags: u16,
+    pub open_to_index: Vec<u16>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Provide {
+    pub provide_index: u16,
+    pub provide_with_index: Vec<u16>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RecordComponent {
+    pub name_index: u16,
+    pub descriptor_index: u16,
+    pub attributes: Vec<Attribute>,
 }

@@ -1,8 +1,8 @@
 use crate::attribute::{
     Annotation, Attribute, AttributeType, BootstrapMethod, CodeAttribute, Element, ElementValue,
-    Exception, InnerClass, LineNumber, LocalVar, LocalVariable, LocalVariableType, MethodParameter,
-    ParameterAnnotation, StackMap, StackMapFrame, TargetInfo, TypeAnnotation, TypePath,
-    VerificationTypeInfo,
+    Exception, Export, InnerClass, LineNumber, LocalVar, LocalVariable, LocalVariableType,
+    MethodParameter, Open, ParameterAnnotation, Provide, RecordComponent, Require, StackMap,
+    StackMapFrame, TargetInfo, TypeAnnotation, TypePath, VerificationTypeInfo,
 };
 use crate::class_file::ClassFile;
 use crate::constant::{Constant, ConstantTag};
@@ -10,7 +10,7 @@ use crate::field::FieldInfo;
 use crate::method::MethodInfo;
 use bitflags::bitflags;
 use nom::bytes::complete::take;
-use nom::combinator::{all_consuming, map, success, verify};
+use nom::combinator::{all_consuming, into, map, success, verify};
 use nom::error::{context, ErrorKind, ParseError, VerboseError, VerboseErrorKind};
 use nom::multi::length_count;
 use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u32, be_u8};
@@ -249,6 +249,54 @@ where
             b"MethodParameters" => {
                 let (input, parameters) = length_count(be_u16, method_parameter)(input)?;
                 (input, AttributeType::MethodParameters { parameters })
+            }
+            b"Module" => {
+                let (input, module_name_index) = be_u16(input)?;
+                let (input, module_flags) = be_u16(input)?;
+                let (input, module_version_index) = be_u16(input)?;
+                let (input, requires) = length_count(be_u16, require)(input)?;
+                let (input, exports) = length_count(be_u16, export)(input)?;
+                let (input, opens) = length_count(be_u16, open)(input)?;
+                let (input, uses) = length_count(be_u16, be_u16)(input)?;
+                let (input, provides) = length_count(be_u16, provide)(input)?;
+                (
+                    input,
+                    AttributeType::Module {
+                        module_name_index,
+                        module_flags,
+                        module_version_index,
+                        requires,
+                        exports,
+                        opens,
+                        uses,
+                        provides,
+                    },
+                )
+            }
+            b"ModulePackages" => {
+                let (input, package_index) = length_count(be_u16, be_u16)(input)?;
+                (input, AttributeType::ModulePackages { package_index })
+            }
+            b"ModuleMainClass" => {
+                let (input, main_class_index) = be_u16(input)?;
+                (input, AttributeType::ModuleMainClass { main_class_index })
+            }
+            b"NestHost" => {
+                let (input, host_class_index) = be_u16(input)?;
+                (input, AttributeType::NestHost { host_class_index })
+            }
+            b"NestMembers" => {
+                let (input, classes) = length_count(be_u16, be_u16)(input)?;
+                (input, AttributeType::NestMembers { classes })
+            }
+            b"Record" => {
+                let (input, components) =
+                    length_count(be_u16, record_component(constant_pool.clone()))(input)?;
+                (input, AttributeType::Record { components })
+            }
+            b"PermittedSubclasses" => {
+                let (input, classes) = length_count(be_u16, be_u16)(input)?;
+                (input, AttributeType::PermittedSubclasses { classes })
             }
             _ => unreachable!("unexpected attribute type"),
         };
@@ -738,28 +786,7 @@ fn method_parameter(input: &[u8]) -> Res<&[u8], MethodParameter> {
 }
 
 fn constant_tag(input: &[u8]) -> Res<&[u8], ConstantTag> {
-    context("constant tag", be_u8)(input).and_then(|(input, tag)| match tag {
-        7 => Ok((input, ConstantTag::Class)),
-        9 => Ok((input, ConstantTag::FieldRef)),
-        10 => Ok((input, ConstantTag::MethodRef)),
-        11 => Ok((input, ConstantTag::InterfaceMethodRef)),
-        8 => Ok((input, ConstantTag::String)),
-        3 => Ok((input, ConstantTag::Integer)),
-        4 => Ok((input, ConstantTag::Float)),
-        5 => Ok((input, ConstantTag::Long)),
-        6 => Ok((input, ConstantTag::Double)),
-        12 => Ok((input, ConstantTag::NameAndType)),
-        1 => Ok((input, ConstantTag::Utf8)),
-        15 => Ok((input, ConstantTag::MethodHandle)),
-        16 => Ok((input, ConstantTag::MethodType)),
-        17 => Ok((input, ConstantTag::Dynamic)),
-        18 => Ok((input, ConstantTag::InvokeDynamic)),
-        19 => Ok((input, ConstantTag::Module)),
-        20 => Ok((input, ConstantTag::Package)),
-        _ => Err(NomErr::Error(VerboseError {
-            errors: vec![(input, VerboseErrorKind::Context("invalid tag"))],
-        })),
-    })
+    context("constant tag", map(be_u8, Into::into))(input)
 }
 
 fn constant(input: &[u8]) -> Res<&[u8], Constant> {
@@ -933,6 +960,90 @@ where
                 descriptor_index,
                 attributes,
                 code_attr_index,
+            },
+        ))
+    }
+}
+
+fn require(input: &[u8]) -> Res<&[u8], Require> {
+    context("require", tuple((be_u16, be_u16, be_u16)))(input).map(
+        |(input, (require_index, require_flags, require_version_index))| {
+            (
+                input,
+                Require {
+                    require_index,
+                    require_flags,
+                    require_version_index,
+                },
+            )
+        },
+    )
+}
+
+fn export(input: &[u8]) -> Res<&[u8], Export> {
+    context(
+        "export",
+        tuple((be_u16, be_u16, length_count(be_u16, be_u16))),
+    )(input)
+    .map(|(input, (export_index, export_flags, export_to_index))| {
+        (
+            input,
+            Export {
+                export_index,
+                export_flags,
+                export_to_index,
+            },
+        )
+    })
+}
+
+fn open(input: &[u8]) -> Res<&[u8], Open> {
+    context(
+        "open",
+        tuple((be_u16, be_u16, length_count(be_u16, be_u16))),
+    )(input)
+    .map(|(input, (open_index, open_flags, open_to_index))| {
+        (
+            input,
+            Open {
+                open_index,
+                open_flags,
+                open_to_index,
+            },
+        )
+    })
+}
+
+fn provide(input: &[u8]) -> Res<&[u8], Provide> {
+    context("provide", pair(be_u16, length_count(be_u16, be_u16)))(input).map(
+        |(input, (provide_index, provide_with_index))| {
+            (
+                input,
+                Provide {
+                    provide_index,
+                    provide_with_index,
+                },
+            )
+        },
+    )
+}
+
+fn record_component<'a, E: ParseError<&'a [u8]>>(
+    constant_pool: ConstantPoolRef,
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], RecordComponent, E> + '_
+where
+    NomErr<E>: From<NomErr<VerboseError<&'a [u8]>>>,
+{
+    move |input| {
+        let (input, name_index) = be_u16(input)?;
+        let (input, descriptor_index) = be_u16(input)?;
+        let (input, attributes) = length_count(be_u16, attribute(constant_pool.clone()))(input)?;
+        Ok((
+            input,
+            RecordComponent {
+                name_index,
+                descriptor_index,
+                attributes,
             },
         ))
     }
