@@ -292,9 +292,9 @@ where
 
 fn exception(input: &[u8]) -> Res<&[u8], Exception> {
     context("exception", tuple((be_u16, be_u16, be_u16, be_u16)))(input).map(
-        |(next_input, (start_pc, end_pc, handler_pc, catch_type))| {
+        |(input, (start_pc, end_pc, handler_pc, catch_type))| {
             (
-                next_input,
+                input,
                 Exception {
                     start_pc,
                     end_pc,
@@ -307,18 +307,18 @@ fn exception(input: &[u8]) -> Res<&[u8], Exception> {
 }
 
 fn stack_map(input: &[u8]) -> Res<&[u8], StackMap> {
-    context("stack map", be_u8)(input).and_then(|(next_input, frame_type)| match frame_type {
+    context("stack map", be_u8)(input).and_then(|(input, frame_type)| match frame_type {
         0..=63 => Ok((
-            next_input,
+            input,
             StackMap {
                 frame_type,
                 frame: StackMapFrame::SameFrame,
             },
         )),
         64..=127 => {
-            let (next_input, stack) = verification_type_info(next_input)?;
+            let (input, stack) = verification_type_info(input)?;
             Ok((
-                next_input,
+                input,
                 StackMap {
                     frame_type,
                     frame: StackMapFrame::SameLocals1StackItemFrame { stack },
@@ -326,10 +326,10 @@ fn stack_map(input: &[u8]) -> Res<&[u8], StackMap> {
             ))
         }
         247 => {
-            let (next_input, offset_delta) = be_u16(next_input)?;
-            let (next_input, stack) = verification_type_info(next_input)?;
+            let (input, offset_delta) = be_u16(input)?;
+            let (input, stack) = verification_type_info(input)?;
             Ok((
-                next_input,
+                input,
                 StackMap {
                     frame_type,
                     frame: StackMapFrame::SameLocals1StackItemFrameExtended {
@@ -340,9 +340,9 @@ fn stack_map(input: &[u8]) -> Res<&[u8], StackMap> {
             ))
         }
         248..=250 => {
-            let (next_input, offset_delta) = be_u16(next_input)?;
+            let (input, offset_delta) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 StackMap {
                     frame_type,
                     frame: StackMapFrame::ChopFrame { offset_delta },
@@ -350,9 +350,9 @@ fn stack_map(input: &[u8]) -> Res<&[u8], StackMap> {
             ))
         }
         251 => {
-            let (next_input, offset_delta) = be_u16(next_input)?;
+            let (input, offset_delta) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 StackMap {
                     frame_type,
                     frame: StackMapFrame::SameFrameExtended { offset_delta },
@@ -360,11 +360,11 @@ fn stack_map(input: &[u8]) -> Res<&[u8], StackMap> {
             ))
         }
         252..=254 => {
-            let (next_input, offset_delta) = be_u16(next_input)?;
-            let (next_input, locals) =
-                length_count(success(frame_type - 251), verification_type_info)(next_input)?;
+            let (input, offset_delta) = be_u16(input)?;
+            let (input, locals) =
+                length_count(success(frame_type - 251), verification_type_info)(input)?;
             Ok((
-                next_input,
+                input,
                 StackMap {
                     frame_type,
                     frame: StackMapFrame::AppendFrame {
@@ -375,11 +375,11 @@ fn stack_map(input: &[u8]) -> Res<&[u8], StackMap> {
             ))
         }
         255 => {
-            let (next_input, offset_delta) = be_u16(next_input)?;
-            let (next_input, locals) = length_count(be_u16, verification_type_info)(next_input)?;
-            let (next_input, stack) = length_count(be_u16, verification_type_info)(next_input)?;
+            let (input, offset_delta) = be_u16(input)?;
+            let (input, locals) = length_count(be_u16, verification_type_info)(input)?;
+            let (input, stack) = length_count(be_u16, verification_type_info)(input)?;
             Ok((
-                next_input,
+                input,
                 StackMap {
                     frame_type,
                     frame: StackMapFrame::FullFrame {
@@ -397,21 +397,21 @@ fn stack_map(input: &[u8]) -> Res<&[u8], StackMap> {
 }
 
 fn verification_type_info(input: &[u8]) -> Res<&[u8], VerificationTypeInfo> {
-    context("verification type info", be_u8)(input).and_then(|(next_input, tag)| match tag {
-        0 => Ok((next_input, VerificationTypeInfo::Top)),
-        1 => Ok((next_input, VerificationTypeInfo::Integer)),
-        2 => Ok((next_input, VerificationTypeInfo::Float)),
-        3 => Ok((next_input, VerificationTypeInfo::Long)),
-        4 => Ok((next_input, VerificationTypeInfo::Double)),
-        5 => Ok((next_input, VerificationTypeInfo::Null)),
-        6 => Ok((next_input, VerificationTypeInfo::UninitializedThis)),
+    context("verification type info", be_u8)(input).and_then(|(input, tag)| match tag {
+        0 => Ok((input, VerificationTypeInfo::Top)),
+        1 => Ok((input, VerificationTypeInfo::Integer)),
+        2 => Ok((input, VerificationTypeInfo::Float)),
+        3 => Ok((input, VerificationTypeInfo::Long)),
+        4 => Ok((input, VerificationTypeInfo::Double)),
+        5 => Ok((input, VerificationTypeInfo::Null)),
+        6 => Ok((input, VerificationTypeInfo::UninitializedThis)),
         7 => {
-            let (next_input, cpool_index) = be_u16(next_input)?;
-            Ok((next_input, VerificationTypeInfo::Object { cpool_index }))
+            let (input, cpool_index) = be_u16(input)?;
+            Ok((input, VerificationTypeInfo::Object { cpool_index }))
         }
         8 => {
-            let (next_input, offset) = be_u16(next_input)?;
-            Ok((next_input, VerificationTypeInfo::Uninitialized { offset }))
+            let (input, offset) = be_u16(input)?;
+            Ok((input, VerificationTypeInfo::Uninitialized { offset }))
         }
         _ => Err(NomErr::Error(VerboseError {
             errors: vec![(input, VerboseErrorKind::Char(tag as char))],
@@ -422,7 +422,7 @@ fn verification_type_info(input: &[u8]) -> Res<&[u8], VerificationTypeInfo> {
 fn inner_class(input: &[u8]) -> Res<&[u8], InnerClass> {
     context("inner class", tuple((be_u16, be_u16, be_u16, be_u16)))(input).map(
         |(
-            next_input,
+            input,
             (
                 inner_class_info_index,
                 outer_class_info_index,
@@ -431,7 +431,7 @@ fn inner_class(input: &[u8]) -> Res<&[u8], InnerClass> {
             ),
         )| {
             (
-                next_input,
+                input,
                 InnerClass {
                     inner_class_info_index,
                     outer_class_info_index,
@@ -444,17 +444,15 @@ fn inner_class(input: &[u8]) -> Res<&[u8], InnerClass> {
 }
 
 fn line_number(input: &[u8]) -> Res<&[u8], LineNumber> {
-    context("line number", pair(be_u16, be_u16))(input).map(
-        |(next_input, (start_pc, line_number))| {
-            (
-                next_input,
-                LineNumber {
-                    start_pc,
-                    line_number,
-                },
-            )
-        },
-    )
+    context("line number", pair(be_u16, be_u16))(input).map(|(input, (start_pc, line_number))| {
+        (
+            input,
+            LineNumber {
+                start_pc,
+                line_number,
+            },
+        )
+    })
 }
 
 fn local_variable(input: &[u8]) -> Res<&[u8], LocalVariable> {
@@ -463,9 +461,9 @@ fn local_variable(input: &[u8]) -> Res<&[u8], LocalVariable> {
         tuple((be_u16, be_u16, be_u16, be_u16, be_u16)),
     )(input)
     .map(
-        |(next_input, (start_pc, length, name_index, descriptor_index, index))| {
+        |(input, (start_pc, length, name_index, descriptor_index, index))| {
             (
-                next_input,
+                input,
                 LocalVariable {
                     start_pc,
                     length,
@@ -484,9 +482,9 @@ fn local_variable_type(input: &[u8]) -> Res<&[u8], LocalVariableType> {
         tuple((be_u16, be_u16, be_u16, be_u16, be_u16)),
     )(input)
     .map(
-        |(next_input, (start_pc, length, name_index, signature_index, index))| {
+        |(input, (start_pc, length, name_index, signature_index, index))| {
             (
-                next_input,
+                input,
                 LocalVariableType {
                     start_pc,
                     length,
@@ -504,9 +502,9 @@ fn annotation(input: &[u8]) -> Res<&[u8], Annotation> {
         "annotation",
         pair(be_u16, length_count(be_u16, pair(be_u16, element_value))),
     )(input)
-    .map(|(next_input, (type_index, element_value_pairs))| {
+    .map(|(input, (type_index, element_value_pairs))| {
         (
-            next_input,
+            input,
             Annotation {
                 type_index,
                 element_value_pairs,
@@ -516,11 +514,11 @@ fn annotation(input: &[u8]) -> Res<&[u8], Annotation> {
 }
 
 fn element_value(input: &[u8]) -> Res<&[u8], ElementValue> {
-    context("element value", be_u8)(input).and_then(|(next_input, tag)| match tag {
+    context("element value", be_u8)(input).and_then(|(input, tag)| match tag {
         b'B' | b'C' | b'D' | b'F' | b'I' | b'J' | b'S' | b'Z' | b's' => {
-            let (next_input, value) = be_u16(next_input)?;
+            let (input, value) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 ElementValue {
                     tag,
                     value: Element::ConstValueIndex(value),
@@ -528,10 +526,10 @@ fn element_value(input: &[u8]) -> Res<&[u8], ElementValue> {
             ))
         }
         b'e' => {
-            let (next_input, type_name_index) = be_u16(next_input)?;
-            let (next_input, const_value_index) = be_u16(next_input)?;
+            let (input, type_name_index) = be_u16(input)?;
+            let (input, const_value_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 ElementValue {
                     tag,
                     value: Element::EnumConstValue(type_name_index, const_value_index),
@@ -539,9 +537,9 @@ fn element_value(input: &[u8]) -> Res<&[u8], ElementValue> {
             ))
         }
         b'c' => {
-            let (next_input, class_info_index) = be_u16(next_input)?;
+            let (input, class_info_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 ElementValue {
                     tag,
                     value: Element::ClassInfoIndex(class_info_index),
@@ -549,9 +547,9 @@ fn element_value(input: &[u8]) -> Res<&[u8], ElementValue> {
             ))
         }
         b'@' => {
-            let (next_input, annotation) = annotation(next_input)?;
+            let (input, annotation) = annotation(input)?;
             Ok((
-                next_input,
+                input,
                 ElementValue {
                     tag,
                     value: Element::AnnotationValue(annotation),
@@ -559,9 +557,9 @@ fn element_value(input: &[u8]) -> Res<&[u8], ElementValue> {
             ))
         }
         b'[' => {
-            let (next_input, values) = length_count(be_u16, element_value)(next_input)?;
+            let (input, values) = length_count(be_u16, element_value)(input)?;
             Ok((
-                next_input,
+                input,
                 ElementValue {
                     tag,
                     value: Element::ArrayValue(values),
@@ -576,7 +574,7 @@ fn element_value(input: &[u8]) -> Res<&[u8], ElementValue> {
 
 fn parameter_annotation(input: &[u8]) -> Res<&[u8], ParameterAnnotation> {
     context("parameter annotation", length_count(be_u16, annotation))(input)
-        .map(|(next_input, annotations)| (next_input, ParameterAnnotation { annotations }))
+        .map(|(input, annotations)| (input, ParameterAnnotation { annotations }))
 }
 
 fn type_annotation(input: &[u8]) -> Res<&[u8], TypeAnnotation> {
@@ -590,9 +588,9 @@ fn type_annotation(input: &[u8]) -> Res<&[u8], TypeAnnotation> {
         )),
     )(input)
     .map(
-        |(next_input, ((target_type, target_info), type_path, type_index, element_value_pairs))| {
+        |(input, ((target_type, target_info), type_path, type_index, element_value_pairs))| {
             (
-                next_input,
+                input,
                 TypeAnnotation {
                     target_type,
                     target_info,
@@ -606,11 +604,11 @@ fn type_annotation(input: &[u8]) -> Res<&[u8], TypeAnnotation> {
 }
 
 fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
-    context("target info", be_u8)(input).and_then(|(next_input, target_type)| match target_type {
+    context("target info", be_u8)(input).and_then(|(input, target_type)| match target_type {
         0x00 | 0x01 => {
-            let (next_input, type_parameter_index) = be_u8(next_input)?;
+            let (input, type_parameter_index) = be_u8(input)?;
             Ok((
-                next_input,
+                input,
                 (
                     target_type,
                     TargetInfo::TypeParameterTarget(type_parameter_index),
@@ -618,17 +616,17 @@ fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
             ))
         }
         0x10 => {
-            let (next_input, supertype_index) = be_u16(next_input)?;
+            let (input, supertype_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 (target_type, TargetInfo::SupertypeTarget(supertype_index)),
             ))
         }
         0x11 | 0x12 => {
-            let (next_input, type_parameter_index) = be_u8(next_input)?;
-            let (next_input, bound_index) = be_u8(next_input)?;
+            let (input, type_parameter_index) = be_u8(input)?;
+            let (input, bound_index) = be_u8(input)?;
             Ok((
-                next_input,
+                input,
                 (
                     target_type,
                     TargetInfo::TypeParameterBoundTarget {
@@ -638,11 +636,11 @@ fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
                 ),
             ))
         }
-        0x13 | 0x14 | 0x15 => Ok((next_input, (target_type, TargetInfo::EmptyTarget))),
+        0x13 | 0x14 | 0x15 => Ok((input, (target_type, TargetInfo::EmptyTarget))),
         0x16 => {
-            let (next_input, formal_parameter_index) = be_u8(next_input)?;
+            let (input, formal_parameter_index) = be_u8(input)?;
             Ok((
-                next_input,
+                input,
                 (
                     target_type,
                     TargetInfo::FormalParameterTarget(formal_parameter_index),
@@ -650,35 +648,32 @@ fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
             ))
         }
         0x17 => {
-            let (next_input, throws_type_index) = be_u16(next_input)?;
+            let (input, throws_type_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 (target_type, TargetInfo::ThrowTarget(throws_type_index)),
             ))
         }
         0x40 | 0x41 => {
-            let (next_input, local_vars) = length_count(be_u16, local_var)(input)?;
-            Ok((
-                next_input,
-                (target_type, TargetInfo::LocalVarTarget(local_vars)),
-            ))
+            let (input, local_vars) = length_count(be_u16, local_var)(input)?;
+            Ok((input, (target_type, TargetInfo::LocalVarTarget(local_vars))))
         }
         0x42 => {
-            let (next_input, exception_table_index) = be_u16(input)?;
+            let (input, exception_table_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 (target_type, TargetInfo::CatchTarget(exception_table_index)),
             ))
         }
         0x43 | 0x44 | 0x45 | 0x46 => {
-            let (next_input, offset) = be_u16(input)?;
-            Ok((next_input, (target_type, TargetInfo::OffsetTarget(offset))))
+            let (input, offset) = be_u16(input)?;
+            Ok((input, (target_type, TargetInfo::OffsetTarget(offset))))
         }
         0x47 | 0x48 | 0x49 | 0x4A | 0x4B => {
-            let (next_input, offset) = be_u16(input)?;
-            let (next_input, type_argument_index) = be_u8(next_input)?;
+            let (input, offset) = be_u16(input)?;
+            let (input, type_argument_index) = be_u8(input)?;
             Ok((
-                next_input,
+                input,
                 (
                     target_type,
                     TargetInfo::TypeArgumentTarget {
@@ -696,14 +691,14 @@ fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
 
 fn type_path(input: &[u8]) -> Res<&[u8], TypePath> {
     context("type path", length_count(be_u8, pair(be_u8, be_u8)))(input)
-        .map(|(next_input, path)| (next_input, TypePath { path }))
+        .map(|(input, path)| (input, TypePath { path }))
 }
 
 fn local_var(input: &[u8]) -> Res<&[u8], LocalVar> {
     context("local var", tuple((be_u16, be_u16, be_u16)))(input).map(
-        |(next_input, (start_pc, length, index))| {
+        |(input, (start_pc, length, index))| {
             (
-                next_input,
+                input,
                 LocalVar {
                     start_pc,
                     length,
@@ -719,24 +714,22 @@ fn bootstrap_method(input: &[u8]) -> Res<&[u8], BootstrapMethod> {
         "bootstrap method",
         pair(be_u16, length_count(be_u16, be_u16)),
     )(input)
-    .map(
-        |(next_input, (bootstrap_method_ref, bootstrap_arguments))| {
-            (
-                next_input,
-                BootstrapMethod {
-                    bootstrap_method_ref,
-                    bootstrap_arguments,
-                },
-            )
-        },
-    )
+    .map(|(input, (bootstrap_method_ref, bootstrap_arguments))| {
+        (
+            input,
+            BootstrapMethod {
+                bootstrap_method_ref,
+                bootstrap_arguments,
+            },
+        )
+    })
 }
 
 fn method_parameter(input: &[u8]) -> Res<&[u8], MethodParameter> {
     context("method parameter", pair(be_u16, be_u16))(input).map(
-        |(next_input, (name_index, access_flags))| {
+        |(input, (name_index, access_flags))| {
             (
-                next_input,
+                input,
                 MethodParameter {
                     name_index,
                     access_flags,
@@ -747,24 +740,24 @@ fn method_parameter(input: &[u8]) -> Res<&[u8], MethodParameter> {
 }
 
 fn constant_tag(input: &[u8]) -> Res<&[u8], ConstantTag> {
-    context("constant tag", be_u8)(input).and_then(|(next_input, tag)| match tag {
-        7 => Ok((next_input, ConstantTag::Class)),
-        9 => Ok((next_input, ConstantTag::FieldRef)),
-        10 => Ok((next_input, ConstantTag::MethodRef)),
-        11 => Ok((next_input, ConstantTag::InterfaceMethodRef)),
-        8 => Ok((next_input, ConstantTag::String)),
-        3 => Ok((next_input, ConstantTag::Integer)),
-        4 => Ok((next_input, ConstantTag::Float)),
-        5 => Ok((next_input, ConstantTag::Long)),
-        6 => Ok((next_input, ConstantTag::Double)),
-        12 => Ok((next_input, ConstantTag::NameAndType)),
-        1 => Ok((next_input, ConstantTag::Utf8)),
-        15 => Ok((next_input, ConstantTag::MethodHandle)),
-        16 => Ok((next_input, ConstantTag::MethodType)),
-        17 => Ok((next_input, ConstantTag::Dynamic)),
-        18 => Ok((next_input, ConstantTag::InvokeDynamic)),
-        19 => Ok((next_input, ConstantTag::Module)),
-        20 => Ok((next_input, ConstantTag::Package)),
+    context("constant tag", be_u8)(input).and_then(|(input, tag)| match tag {
+        7 => Ok((input, ConstantTag::Class)),
+        9 => Ok((input, ConstantTag::FieldRef)),
+        10 => Ok((input, ConstantTag::MethodRef)),
+        11 => Ok((input, ConstantTag::InterfaceMethodRef)),
+        8 => Ok((input, ConstantTag::String)),
+        3 => Ok((input, ConstantTag::Integer)),
+        4 => Ok((input, ConstantTag::Float)),
+        5 => Ok((input, ConstantTag::Long)),
+        6 => Ok((input, ConstantTag::Double)),
+        12 => Ok((input, ConstantTag::NameAndType)),
+        1 => Ok((input, ConstantTag::Utf8)),
+        15 => Ok((input, ConstantTag::MethodHandle)),
+        16 => Ok((input, ConstantTag::MethodType)),
+        17 => Ok((input, ConstantTag::Dynamic)),
+        18 => Ok((input, ConstantTag::InvokeDynamic)),
+        19 => Ok((input, ConstantTag::Module)),
+        20 => Ok((input, ConstantTag::Package)),
         _ => Err(NomErr::Error(VerboseError {
             errors: vec![(input, VerboseErrorKind::Context("invalid tag"))],
         })),
@@ -772,16 +765,16 @@ fn constant_tag(input: &[u8]) -> Res<&[u8], ConstantTag> {
 }
 
 fn constant(input: &[u8]) -> Res<&[u8], Constant> {
-    context("constant", constant_tag)(input).and_then(|(next_input, tag)| match tag {
+    context("constant", constant_tag)(input).and_then(|(input, tag)| match tag {
         ConstantTag::Class => {
-            let (next_input, name_index) = be_u16(next_input)?;
-            Ok((next_input, Constant::Class { name_index }))
+            let (input, name_index) = be_u16(input)?;
+            Ok((input, Constant::Class { name_index }))
         }
         ConstantTag::FieldRef => {
-            let (next_input, class_index) = be_u16(next_input)?;
-            let (next_input, name_and_type_index) = be_u16(next_input)?;
+            let (input, class_index) = be_u16(input)?;
+            let (input, name_and_type_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 Constant::FieldRef {
                     class_index,
                     name_and_type_index,
@@ -789,10 +782,10 @@ fn constant(input: &[u8]) -> Res<&[u8], Constant> {
             ))
         }
         ConstantTag::MethodRef => {
-            let (next_input, class_index) = be_u16(next_input)?;
-            let (next_input, name_and_type_index) = be_u16(next_input)?;
+            let (input, class_index) = be_u16(input)?;
+            let (input, name_and_type_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 Constant::MethodRef {
                     class_index,
                     name_and_type_index,
@@ -800,10 +793,10 @@ fn constant(input: &[u8]) -> Res<&[u8], Constant> {
             ))
         }
         ConstantTag::InterfaceMethodRef => {
-            let (next_input, class_index) = be_u16(next_input)?;
-            let (next_input, name_and_type_index) = be_u16(next_input)?;
+            let (input, class_index) = be_u16(input)?;
+            let (input, name_and_type_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 Constant::InterfaceMethodRef {
                     class_index,
                     name_and_type_index,
@@ -811,30 +804,30 @@ fn constant(input: &[u8]) -> Res<&[u8], Constant> {
             ))
         }
         ConstantTag::String => {
-            let (next_input, string_index) = be_u16(next_input)?;
-            Ok((next_input, Constant::String { string_index }))
+            let (input, string_index) = be_u16(input)?;
+            Ok((input, Constant::String { string_index }))
         }
         ConstantTag::Integer => {
-            let (next_input, value) = be_i32(next_input)?;
-            Ok((next_input, Constant::Integer(value as i32)))
+            let (input, value) = be_i32(input)?;
+            Ok((input, Constant::Integer(value as i32)))
         }
         ConstantTag::Float => {
-            let (next_input, value) = be_f32(next_input)?;
-            Ok((next_input, Constant::Float(value)))
+            let (input, value) = be_f32(input)?;
+            Ok((input, Constant::Float(value)))
         }
         ConstantTag::Long => {
-            let (next_input, value) = be_i64(next_input)?;
-            Ok((next_input, Constant::Long(value)))
+            let (input, value) = be_i64(input)?;
+            Ok((input, Constant::Long(value)))
         }
         ConstantTag::Double => {
-            let (next_input, value) = be_f64(next_input)?;
-            Ok((next_input, Constant::Double(value)))
+            let (input, value) = be_f64(input)?;
+            Ok((input, Constant::Double(value)))
         }
         ConstantTag::NameAndType => {
-            let (next_input, name_index) = be_u16(next_input)?;
-            let (next_input, descriptor_index) = be_u16(next_input)?;
+            let (input, name_index) = be_u16(input)?;
+            let (input, descriptor_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 Constant::NameAndType {
                     name_index,
                     descriptor_index,
@@ -842,15 +835,15 @@ fn constant(input: &[u8]) -> Res<&[u8], Constant> {
             ))
         }
         ConstantTag::Utf8 => {
-            let (next_input, length) = be_u16(next_input)?;
-            let (next_input, bytes) = take(length)(next_input)?;
-            Ok((next_input, Constant::Utf8(BytesRef::new(bytes.to_vec()))))
+            let (input, length) = be_u16(input)?;
+            let (input, bytes) = take(length)(input)?;
+            Ok((input, Constant::Utf8(BytesRef::new(bytes.to_vec()))))
         }
         ConstantTag::MethodHandle => {
-            let (next_input, reference_kind) = be_u8(next_input)?;
-            let (next_input, reference_index) = be_u16(next_input)?;
+            let (input, reference_kind) = be_u8(input)?;
+            let (input, reference_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 Constant::MethodHandle {
                     reference_kind,
                     reference_index,
@@ -858,14 +851,14 @@ fn constant(input: &[u8]) -> Res<&[u8], Constant> {
             ))
         }
         ConstantTag::MethodType => {
-            let (next_input, descriptor_index) = be_u16(next_input)?;
-            Ok((next_input, Constant::MethodType { descriptor_index }))
+            let (input, descriptor_index) = be_u16(input)?;
+            Ok((input, Constant::MethodType { descriptor_index }))
         }
         ConstantTag::Dynamic => {
-            let (next_input, bootstrap_method_attr_index) = be_u16(next_input)?;
-            let (next_input, name_and_type_index) = be_u16(next_input)?;
+            let (input, bootstrap_method_attr_index) = be_u16(input)?;
+            let (input, name_and_type_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 Constant::Dynamic {
                     bootstrap_method_attr_index,
                     name_and_type_index,
@@ -873,10 +866,10 @@ fn constant(input: &[u8]) -> Res<&[u8], Constant> {
             ))
         }
         ConstantTag::InvokeDynamic => {
-            let (next_input, bootstrap_method_attr_index) = be_u16(next_input)?;
-            let (next_input, name_and_type_index) = be_u16(next_input)?;
+            let (input, bootstrap_method_attr_index) = be_u16(input)?;
+            let (input, name_and_type_index) = be_u16(input)?;
             Ok((
-                next_input,
+                input,
                 Constant::InvokeDynamic {
                     bootstrap_method_attr_index,
                     name_and_type_index,
@@ -884,12 +877,12 @@ fn constant(input: &[u8]) -> Res<&[u8], Constant> {
             ))
         }
         ConstantTag::Module => {
-            let (next_input, name_index) = be_u16(next_input)?;
-            Ok((next_input, Constant::Module { name_index }))
+            let (input, name_index) = be_u16(input)?;
+            Ok((input, Constant::Module { name_index }))
         }
         ConstantTag::Package => {
-            let (next_input, name_index) = be_u16(next_input)?;
-            Ok((next_input, Constant::Package { name_index }))
+            let (input, name_index) = be_u16(input)?;
+            Ok((input, Constant::Package { name_index }))
         }
     })
 }
