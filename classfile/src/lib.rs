@@ -41,9 +41,13 @@ fn get_utf8(constant_pool: ConstantPoolRef, index: usize) -> BytesRef {
 }
 
 pub fn parse(input: &[u8]) -> Res<&[u8], ClassFile> {
+    context("class file", all_consuming(class_file))(input)
+}
+
+fn class_file(input: &[u8]) -> Res<&[u8], ClassFile> {
     context(
         "class file",
-        all_consuming(tuple((
+        tuple((
             verify(be_u32, |magic| *magic == MAGIC),
             be_u16,
             be_u16,
@@ -52,7 +56,7 @@ pub fn parse(input: &[u8]) -> Res<&[u8], ClassFile> {
             be_u16,
             be_u16,
             length_count(be_u16, constant),
-        ))),
+        )),
     )(input)
     .and_then(
         |(
@@ -968,19 +972,20 @@ bitflags! {
 
 #[cfg(test)]
 mod test {
-    use crate::class_file;
     use crate::class_file::ClassFile;
+    use crate::{class_file, parse};
     use std::io::Read;
 
     #[test]
     fn read_class_file() {
         let file = std::fs::File::open("tests/HelloWorld.class").unwrap();
         let bytes: Vec<u8> = file.bytes().map(|x| x.unwrap()).collect();
-        let ret = class_file(bytes.as_slice());
+        let ret = parse(bytes.as_slice());
 
         match ret {
             Ok((input, class_file)) => {
                 println!("{:?}", class_file);
+                println!("{:?}", input);
             }
             n => println!("{:?}", n),
         }
