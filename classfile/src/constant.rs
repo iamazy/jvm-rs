@@ -1,7 +1,5 @@
-use crate::BytesRef;
-
 #[derive(Debug, Clone)]
-pub enum Constant {
+pub enum Constant<'a> {
     Class {
         name_index: u16,
     },
@@ -28,7 +26,7 @@ pub enum Constant {
         name_index: u16,
         descriptor_index: u16,
     },
-    Utf8(BytesRef),
+    Utf8(&'a [u8]),
     MethodHandle {
         reference_kind: u8,
         reference_index: u16,

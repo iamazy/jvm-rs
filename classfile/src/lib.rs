@@ -13,7 +13,7 @@ use nom::bytes::complete::take;
 use nom::combinator::{all_consuming, map, success, verify};
 use nom::error::{context, ErrorKind, ParseError, VerboseError, VerboseErrorKind};
 use nom::multi::length_count;
-use nom::number::complete::{be_f32, be_f64, be_i16, be_i32, be_i64, be_u16, be_u32, be_u8};
+use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u32, be_u8};
 use nom::sequence::{pair, tuple};
 use nom::Err as NomErr;
 use std::rc::Rc;
@@ -27,15 +27,14 @@ mod method;
 
 const MAGIC: u32 = 0xCAFEBABE;
 
-type BytesRef = Rc<Vec<u8>>;
-type ConstantPoolRef = Rc<Vec<Constant>>;
+type ConstantPoolRef<'a> = Rc<Vec<Constant<'a>>>;
 
 type IResult<I, O, E = (I, ErrorKind)> = Result<(I, O), NomErr<E>>;
 type Res<T, U> = IResult<T, U, VerboseError<T>>;
 
-fn get_utf8(constant_pool: ConstantPoolRef, index: usize) -> BytesRef {
+fn get_utf8(constant_pool: ConstantPoolRef, index: usize) -> &[u8] {
     match constant_pool.get(index - 1) {
-        Some(Constant::Utf8(bytes)) => bytes.clone(),
+        Some(Constant::Utf8(bytes)) => *bytes,
         _ => unreachable!("constant pool index mismatch"),
     }
 }
@@ -100,7 +99,7 @@ fn class_file(input: &[u8]) -> Res<&[u8], ClassFile> {
 
 fn attribute<'a, E: ParseError<&'a [u8]>>(
     constant_pool: ConstantPoolRef,
-) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Attribute, E>
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Attribute, E> + '_
 where
     nom::Err<E>: From<nom::Err<VerboseError<&'a [u8]>>>,
 {
@@ -108,7 +107,6 @@ where
         let (input, attribute_name_index) = be_u16(input)?;
         let (input, attribute_length) = be_u32(input)?;
         let attribute_name = get_utf8(constant_pool.clone(), attribute_name_index as usize);
-        let attribute_name = attribute_name.as_slice();
         let (input, attr_type) = match attribute_name {
             b"ConstantValue" => {
                 let (input, constant_value_index) = be_u16(input)?;
@@ -267,7 +265,7 @@ where
 
 fn code_attribute<'a, E: ParseError<&'a [u8]>>(
     constant_pool: ConstantPoolRef,
-) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CodeAttribute, E>
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CodeAttribute, E> + '_
 where
     nom::Err<E>: From<nom::Err<VerboseError<&'a [u8]>>>,
 {
@@ -837,7 +835,7 @@ fn constant(input: &[u8]) -> Res<&[u8], Constant> {
         ConstantTag::Utf8 => {
             let (input, length) = be_u16(input)?;
             let (input, bytes) = take(length)(input)?;
-            Ok((input, Constant::Utf8(BytesRef::new(bytes.to_vec()))))
+            Ok((input, Constant::Utf8(bytes)))
         }
         ConstantTag::MethodHandle => {
             let (input, reference_kind) = be_u8(input)?;
@@ -889,7 +887,7 @@ fn constant(input: &[u8]) -> Res<&[u8], Constant> {
 
 fn field_info<'a, E: ParseError<&'a [u8]>>(
     constant_pool: ConstantPoolRef,
-) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], FieldInfo, E>
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], FieldInfo, E> + '_
 where
     nom::Err<E>: From<nom::Err<VerboseError<&'a [u8]>>>,
 {
@@ -912,7 +910,7 @@ where
 
 fn method_info<'a, E: ParseError<&'a [u8]>>(
     constant_pool: ConstantPoolRef,
-) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], MethodInfo, E>
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], MethodInfo, E> + '_
 where
     nom::Err<E>: From<nom::Err<VerboseError<&'a [u8]>>>,
 {
@@ -965,8 +963,7 @@ bitflags! {
 
 #[cfg(test)]
 mod test {
-    use crate::class_file::ClassFile;
-    use crate::{class_file, parse};
+    use crate::parse;
     use std::io::Read;
 
     #[test]
@@ -978,7 +975,7 @@ mod test {
         match ret {
             Ok((input, class_file)) => {
                 println!("{:?}", class_file);
-                println!("{:?}", input);
+                assert_eq!(input.len(), 0);
             }
             n => println!("{:?}", n),
         }
