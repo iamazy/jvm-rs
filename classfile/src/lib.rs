@@ -101,7 +101,7 @@ fn attribute<'a, E: ParseError<&'a [u8]>>(
     constant_pool: ConstantPoolRef,
 ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Attribute, E> + '_
 where
-    nom::Err<E>: From<nom::Err<VerboseError<&'a [u8]>>>,
+    NomErr<E>: From<NomErr<VerboseError<&'a [u8]>>>,
 {
     move |input: &'a [u8]| {
         let (input, attribute_name_index) = be_u16(input)?;
@@ -267,7 +267,7 @@ fn code_attribute<'a, E: ParseError<&'a [u8]>>(
     constant_pool: ConstantPoolRef,
 ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CodeAttribute, E> + '_
 where
-    nom::Err<E>: From<nom::Err<VerboseError<&'a [u8]>>>,
+    NomErr<E>: From<NomErr<VerboseError<&'a [u8]>>>,
 {
     move |input: &[u8]| {
         let (input, max_stack) = be_u16(input)?;
@@ -889,7 +889,7 @@ fn field_info<'a, E: ParseError<&'a [u8]>>(
     constant_pool: ConstantPoolRef,
 ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], FieldInfo, E> + '_
 where
-    nom::Err<E>: From<nom::Err<VerboseError<&'a [u8]>>>,
+    NomErr<E>: From<NomErr<VerboseError<&'a [u8]>>>,
 {
     move |input| {
         let (input, access_flags) = be_u16(input)?;
@@ -912,7 +912,7 @@ fn method_info<'a, E: ParseError<&'a [u8]>>(
     constant_pool: ConstantPoolRef,
 ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], MethodInfo, E> + '_
 where
-    nom::Err<E>: From<nom::Err<VerboseError<&'a [u8]>>>,
+    NomErr<E>: From<NomErr<VerboseError<&'a [u8]>>>,
 {
     move |input| {
         let (input, access_flags) = be_u16(input)?;
