@@ -1,5 +1,3 @@
-use classfile::ClassFile;
-use std::borrow::Borrow;
 use std::io::Read;
 use std::path::Path;
 
