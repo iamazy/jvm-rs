@@ -1,5 +1,4 @@
 use crate::attribute::Attribute;
-use crate::constant::Constant;
 use crate::field::FieldInfo;
 use crate::method::MethodInfo;
 use crate::ConstantPoolRef;
