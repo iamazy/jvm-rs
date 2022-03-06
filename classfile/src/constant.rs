@@ -1,5 +1,6 @@
 #[derive(Debug, Clone)]
 pub enum Constant<'a> {
+    Placeholder,
     Class {
         name_index: u16,
     },

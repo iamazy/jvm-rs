@@ -1,16 +1,17 @@
-use crate::attribute::{
+pub use attribute::{
     Annotation, Attribute, AttributeType, BootstrapMethod, CodeAttribute, Element, ElementValue,
     Exception, Export, InnerClass, LineNumber, LocalVar, LocalVariable, LocalVariableType,
     MethodParameter, Open, ParameterAnnotation, Provide, RecordComponent, Require, StackMap,
     StackMapFrame, TargetInfo, TypeAnnotation, TypePath, VerificationTypeInfo,
 };
-use crate::class_file::ClassFile;
-use crate::constant::{Constant, ConstantTag};
-use crate::field::FieldInfo;
-use crate::method::MethodInfo;
+pub use class_file::ClassFile;
+pub use constant::{Constant, ConstantTag};
+pub use field::FieldInfo;
+pub use method::MethodInfo;
+
 use bitflags::bitflags;
-use nom::bytes::complete::take;
-use nom::combinator::{all_consuming, into, map, success, verify};
+use nom::bytes::complete::{tag, take};
+use nom::combinator::{all_consuming, map, success};
 use nom::error::{context, ErrorKind, ParseError, VerboseError, VerboseErrorKind};
 use nom::multi::length_count;
 use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u32, be_u8};
@@ -25,16 +26,19 @@ mod errors;
 mod field;
 mod method;
 
-const MAGIC: u32 = 0xCAFEBABE;
+const MAGIC: &[u8] = b"\xCA\xFE\xBA\xBE";
 
 type ConstantPoolRef<'a> = Rc<Vec<Constant<'a>>>;
 
 type IResult<I, O, E = (I, ErrorKind)> = Result<(I, O), NomErr<E>>;
 type Res<T, U> = IResult<T, U, VerboseError<T>>;
 
-fn get_utf8(constant_pool: ConstantPoolRef, index: usize) -> &[u8] {
-    match constant_pool.get(index - 1) {
+pub fn get_utf8(constant_pool: ConstantPoolRef, index: usize) -> &[u8] {
+    match constant_pool.get(index) {
         Some(Constant::Utf8(bytes)) => *bytes,
+        Some(Constant::Class { name_index }) => {
+            get_utf8(constant_pool.clone(), *name_index as usize)
+        }
         _ => unreachable!("constant pool index mismatch"),
     }
 }
@@ -47,21 +51,21 @@ fn class_file(input: &[u8]) -> Res<&[u8], ClassFile> {
     context(
         "class file",
         tuple((
-            verify(be_u32, |magic| *magic == MAGIC),
+            tag(MAGIC),
             be_u16,
             be_u16,
-            length_count(map(be_u16, |n| n - 1), constant),
+            constant_pool,
             be_u16,
             be_u16,
             be_u16,
-            length_count(be_u16, constant),
+            length_count(be_u16, be_u16),
         )),
     )(input)
     .and_then(
         |(
             input,
             (
-                magic,
+                _,
                 minor_version,
                 major_version,
                 constant_pool,
@@ -80,7 +84,6 @@ fn class_file(input: &[u8]) -> Res<&[u8], ClassFile> {
             Ok((
                 input,
                 ClassFile {
-                    magic,
                     minor_version,
                     major_version,
                     constant_pool,
@@ -95,6 +98,28 @@ fn class_file(input: &[u8]) -> Res<&[u8], ClassFile> {
             ))
         },
     )
+}
+
+fn constant_pool(input: &[u8]) -> Res<&[u8], Vec<Constant>> {
+    context("constant pool", be_u16)(input).and_then(|(mut next_input, count)| {
+        let mut constant_pool = Vec::with_capacity(count as usize);
+        constant_pool.push(Constant::Placeholder);
+        let mut i = 1;
+        while i < count {
+            let (input, constant) = constant(next_input)?;
+            constant_pool.push(constant.clone());
+            next_input = input;
+            i += 1;
+            match constant {
+                Constant::Long(_) | Constant::Double(_) => {
+                    constant_pool.push(Constant::Placeholder);
+                    i += 1;
+                }
+                _ => {}
+            }
+        }
+        Ok((next_input, constant_pool))
+    })
 }
 
 fn attribute<'a, E: ParseError<&'a [u8]>>(
@@ -834,7 +859,7 @@ fn constant(input: &[u8]) -> Res<&[u8], Constant> {
         }
         ConstantTag::Integer => {
             let (input, value) = be_i32(input)?;
-            Ok((input, Constant::Integer(value as i32)))
+            Ok((input, Constant::Integer(value)))
         }
         ConstantTag::Float => {
             let (input, value) = be_f32(input)?;
@@ -1079,7 +1104,7 @@ mod test {
 
     #[test]
     fn read_class_file() {
-        let file = std::fs::File::open("tests/HelloWorld.class").unwrap();
+        let file = std::fs::File::open("../data/jvm8/HelloWorld.class").unwrap();
         let bytes: Vec<u8> = file.bytes().map(|x| x.unwrap()).collect();
         let ret = parse(bytes.as_slice());
 
