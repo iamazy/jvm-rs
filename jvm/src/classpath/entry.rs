@@ -1,36 +1,62 @@
 use std::io::Read;
 use std::path::Path;
 
+#[cfg(target_os = "windows")]
+const PATH_SEPARATOR: &str = "\\";
+#[cfg(target_os = "linux")]
+const PATH_SEPARATOR: &str = "/";
+#[cfg(target_os = "macos")]
 const PATH_SEPARATOR: &str = "/";
 
+#[cfg(target_os = "windows")]
+const PATH_LIST_SEPARATOR: &str = ";";
+#[cfg(target_os = "linux")]
+const PATH_LIST_SEPARATOR: &str = ":";
+#[cfg(target_os = "macos")]
+const PATH_LIST_SEPARATOR: &str = ":";
+
 pub trait Entry {
-    fn string(&self) -> &str;
+    fn string(&self) -> &String;
     fn read_class(&self, class_name: &str) -> anyhow::Result<Vec<u8>>;
+}
+
+pub fn new_entry(path: String) -> anyhow::Result<Box<dyn Entry>> {
+    if path.contains(PATH_LIST_SEPARATOR) {
+        Ok(Box::new(CompositeEntry::new(path)?))
+    } else if path.ends_with(".jar")
+        || path.ends_with(".JAR")
+        || path.ends_with(".zip")
+        || path.ends_with(".ZIP")
+    {
+        Ok(Box::new(ZipEntry::new(path)?))
+    } else {
+        Err(anyhow::anyhow!("Invalid path: {}", path))
+    }
 }
 
 #[derive(Debug)]
 pub struct DirEntry {
-    absolute_path: String,
+    path: String,
 }
 
 impl DirEntry {
-    pub fn new(absolute_path: String) -> anyhow::Result<Self> {
-        let path = Path::new(&absolute_path);
-        if path.exists() && path.is_dir() {
-            Ok(Self { absolute_path })
+    pub fn new(path: String) -> anyhow::Result<Self> {
+        let new_path = Path::new(&path);
+        if new_path.exists() && new_path.is_dir() {
+            Ok(Self { path })
         } else {
-            Err(anyhow::anyhow!("{} is not a directory", absolute_path))
+            Err(anyhow::anyhow!("{} is not a directory", path))
         }
     }
 }
 
 impl Entry for DirEntry {
-    fn string(&self) -> &str {
-        &self.absolute_path
+    fn string(&self) -> &String {
+        &self.path
     }
 
     fn read_class(&self, class_name: &str) -> anyhow::Result<Vec<u8>> {
-        let class_path = format!("{}{}{}", self.absolute_path, PATH_SEPARATOR, class_name);
+        let class_path = format!("{}{}{}", self.path, PATH_SEPARATOR, class_name);
         let file = std::fs::File::open(class_path.as_str())?;
         let bytes: Vec<u8> = file.bytes().map(|x| x.unwrap()).collect();
         Ok(bytes)
@@ -39,31 +65,31 @@ impl Entry for DirEntry {
 
 #[derive(Debug)]
 pub struct ZipEntry {
-    absolute_path: String,
+    path: String,
 }
 
 impl ZipEntry {
-    pub fn new(absolute_path: String) -> anyhow::Result<Self> {
-        let path = Path::new(&absolute_path);
-        if path.exists()
-            && path.is_file()
-            && (path.extension() == Some(std::ffi::OsStr::new("zip"))
-                || path.extension() == Some(std::ffi::OsStr::new("jar")))
+    pub fn new(path: String) -> anyhow::Result<Self> {
+        let new_path = Path::new(&path);
+        if new_path.exists()
+            && new_path.is_file()
+            && (new_path.extension() == Some(std::ffi::OsStr::new("zip"))
+                || new_path.extension() == Some(std::ffi::OsStr::new("jar")))
         {
-            Ok(Self { absolute_path })
+            Ok(Self { path })
         } else {
-            Err(anyhow::anyhow!("{} is not a valid zip file", absolute_path))
+            Err(anyhow::anyhow!("{} is not a valid zip file", path))
         }
     }
 }
 
 impl Entry for ZipEntry {
-    fn string(&self) -> &str {
-        &self.absolute_path
+    fn string(&self) -> &String {
+        &self.path
     }
 
     fn read_class(&self, class_name: &str) -> anyhow::Result<Vec<u8>> {
-        let file = std::fs::File::open(self.absolute_path.as_str())?;
+        let file = std::fs::File::open(self.path.as_str())?;
         let mut zip = zip::ZipArchive::new(file)?;
         let mut class = zip.by_name(class_name)?;
         let mut bytes = Vec::new();
@@ -72,7 +98,36 @@ impl Entry for ZipEntry {
     }
 }
 
-type CompositeEntry = Vec<Box<dyn Entry>>;
+pub struct CompositeEntry {
+    entries: Vec<Box<dyn Entry>>,
+    path: String,
+}
+
+impl CompositeEntry {
+    pub fn new(path: String) -> anyhow::Result<Self> {
+        let entries: Vec<Box<dyn Entry>> = path
+            .split(PATH_LIST_SEPARATOR)
+            .map(|path| new_entry(path.to_string()))
+            .collect::<anyhow::Result<Vec<Box<dyn Entry>>>>()?;
+        Ok(Self { entries, path })
+    }
+}
+
+impl Entry for CompositeEntry {
+    fn string(&self) -> &String {
+        &self.path
+    }
+
+    fn read_class(&self, class_name: &str) -> anyhow::Result<Vec<u8>> {
+        for entry in self.entries.iter() {
+            let bytes = entry.read_class(class_name)?;
+            if bytes.len() > 0 {
+                return Ok(bytes);
+            }
+        }
+        Err(anyhow::anyhow!("{} not found", class_name))
+    }
+}
 
 #[cfg(test)]
 mod tests {
