@@ -104,6 +104,82 @@ pub enum AttributeType {
 }
 
 #[derive(Debug, Clone)]
+pub enum AttributeTag {
+    ConstantValue,
+    Code,
+    StackMapTable,
+    Exceptions,
+    InnerClasses,
+    EnclosingMethod,
+    Synthetic,
+    Signature,
+    SourceFile,
+    SourceDebugExtension,
+    LineNumberTable,
+    LocalVariableTable,
+    LocalVariableTypeTable,
+    Deprecated,
+    RuntimeVisibleAnnotations,
+    RuntimeInvisibleAnnotations,
+    RuntimeVisibleParameterAnnotations,
+    RuntimeInvisibleParameterAnnotations,
+    RuntimeVisibleTypeAnnotations,
+    RuntimeInvisibleTypeAnnotations,
+    AnnotationDefault,
+    BootstrapMethods,
+    MethodParameters,
+    Module,
+    ModulePackages,
+    ModuleMainClass,
+    NestHost,
+    NestMembers,
+    Record,
+    PermittedSubclasses,
+}
+
+impl From<&[u8]> for AttributeTag {
+    fn from(tag: &[u8]) -> Self {
+        match tag {
+            b"ConstantValue" => AttributeTag::ConstantValue,
+            b"Code" => AttributeTag::Code,
+            b"StackMapTable" => AttributeTag::StackMapTable,
+            b"Exceptions" => AttributeTag::Exceptions,
+            b"InnerClasses" => AttributeTag::InnerClasses,
+            b"EnclosingMethod" => AttributeTag::EnclosingMethod,
+            b"Synthetic" => AttributeTag::Synthetic,
+            b"Signature" => AttributeTag::Signature,
+            b"SourceFile" => AttributeTag::SourceFile,
+            b"SourceDebugExtension" => AttributeTag::SourceDebugExtension,
+            b"LineNumberTable" => AttributeTag::LineNumberTable,
+            b"LocalVariableTable" => AttributeTag::LocalVariableTable,
+            b"LocalVariableTypeTable" => AttributeTag::LocalVariableTypeTable,
+            b"Deprecated" => AttributeTag::Deprecated,
+            b"RuntimeVisibleAnnotations" => AttributeTag::RuntimeVisibleAnnotations,
+            b"RuntimeInvisibleAnnotations" => AttributeTag::RuntimeInvisibleAnnotations,
+            b"RuntimeVisibleParameterAnnotations" => {
+                AttributeTag::RuntimeVisibleParameterAnnotations
+            }
+            b"RuntimeInvisibleParameterAnnotations" => {
+                AttributeTag::RuntimeInvisibleParameterAnnotations
+            }
+            b"RuntimeVisibleTypeAnnotations" => AttributeTag::RuntimeVisibleTypeAnnotations,
+            b"RuntimeInvisibleTypeAnnotations" => AttributeTag::RuntimeInvisibleTypeAnnotations,
+            b"AnnotationDefault" => AttributeTag::AnnotationDefault,
+            b"BootstrapMethods" => AttributeTag::BootstrapMethods,
+            b"MethodParameters" => AttributeTag::MethodParameters,
+            b"Module" => AttributeTag::Module,
+            b"ModulePackages" => AttributeTag::ModulePackages,
+            b"ModuleMainClass" => AttributeTag::ModuleMainClass,
+            b"NestHost" => AttributeTag::NestHost,
+            b"NestMembers" => AttributeTag::NestMembers,
+            b"Record" => AttributeTag::Record,
+            b"PermittedSubclasses" => AttributeTag::PermittedSubclasses,
+            _ => unreachable!("invalid attribute tag"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct CodeAttribute {
     pub max_stack: u16,
     pub max_locals: u16,

@@ -9,6 +9,7 @@ pub use constant::{Constant, ConstantTag};
 pub use field::FieldInfo;
 pub use method::MethodInfo;
 
+use crate::attribute::AttributeTag;
 use bitflags::bitflags;
 use nom::bytes::complete::{tag, take};
 use nom::combinator::{all_consuming, map, success};
@@ -132,8 +133,8 @@ where
         let (input, attribute_name_index) = be_u16(input)?;
         let (input, attribute_length) = be_u32(input)?;
         let attribute_name = get_utf8(constant_pool.clone(), attribute_name_index as usize);
-        let (input, attr_type) = match attribute_name {
-            b"ConstantValue" => {
+        let (input, attr_type) = match attribute_name.into() {
+            AttributeTag::ConstantValue => {
                 let (input, constant_value_index) = be_u16(input)?;
                 (
                     input,
@@ -142,15 +143,15 @@ where
                     },
                 )
             }
-            b"Code" => {
+            AttributeTag::Code => {
                 let (input, code) = code_attribute(constant_pool.clone())(input)?;
                 (input, AttributeType::Code { code })
             }
-            b"StackMapTable" => {
+            AttributeTag::StackMapTable => {
                 let (input, entries) = length_count(be_u16, stack_map)(input)?;
                 (input, AttributeType::StackMapTable { entries })
             }
-            b"Exceptions" => {
+            AttributeTag::Exceptions => {
                 let (input, exception_index_table) = length_count(be_u16, be_u16)(input)?;
                 (
                     input,
@@ -159,11 +160,11 @@ where
                     },
                 )
             }
-            b"InnerClasses" => {
+            AttributeTag::InnerClasses => {
                 let (input, classes) = length_count(be_u16, inner_class)(input)?;
                 (input, AttributeType::InnerClasses { classes })
             }
-            b"EnclosingMethod" => {
+            AttributeTag::EnclosingMethod => {
                 let (input, class_index) = be_u16(input)?;
                 let (input, method_index) = be_u16(input)?;
                 (
@@ -174,16 +175,16 @@ where
                     },
                 )
             }
-            b"Synthetic" => (input, AttributeType::Synthetic),
-            b"Signature" => {
+            AttributeTag::Synthetic => (input, AttributeType::Synthetic),
+            AttributeTag::Signature => {
                 let (input, signature_index) = be_u16(input)?;
                 (input, AttributeType::Signature { signature_index })
             }
-            b"SourceFile" => {
+            AttributeTag::SourceFile => {
                 let (input, sourcefile_index) = be_u16(input)?;
                 (input, AttributeType::SourceFile { sourcefile_index })
             }
-            b"SourceDebugExtension" => {
+            AttributeTag::SourceDebugExtension => {
                 let (input, debug_extension) =
                     length_count(success(attribute_length), be_u8)(input)?;
                 (
@@ -191,11 +192,11 @@ where
                     AttributeType::SourceDebugExtension { debug_extension },
                 )
             }
-            b"LineNumberTable" => {
+            AttributeTag::LineNumberTable => {
                 let (input, line_number_table) = length_count(be_u16, line_number)(input)?;
                 (input, AttributeType::LineNumberTable { line_number_table })
             }
-            b"LocalVariableTable" => {
+            AttributeTag::LocalVariableTable => {
                 let (input, local_variable_table) = length_count(be_u16, local_variable)(input)?;
                 (
                     input,
@@ -204,7 +205,7 @@ where
                     },
                 )
             }
-            b"LocalVariableTypeTable" => {
+            AttributeTag::LocalVariableTypeTable => {
                 let (input, local_variable_type_table) =
                     length_count(be_u16, local_variable_type)(input)?;
                 (
@@ -214,22 +215,22 @@ where
                     },
                 )
             }
-            b"Deprecated" => (input, AttributeType::Deprecated),
-            b"RuntimeVisibleAnnotations" => {
+            AttributeTag::Deprecated => (input, AttributeType::Deprecated),
+            AttributeTag::RuntimeVisibleAnnotations => {
                 let (input, annotations) = length_count(be_u16, annotation)(input)?;
                 (
                     input,
                     AttributeType::RuntimeVisibleAnnotations { annotations },
                 )
             }
-            b"RuntimeInvisibleAnnotations" => {
+            AttributeTag::RuntimeInvisibleAnnotations => {
                 let (input, annotations) = length_count(be_u16, annotation)(input)?;
                 (
                     input,
                     AttributeType::RuntimeInvisibleAnnotations { annotations },
                 )
             }
-            b"RuntimeVisibleParameterAnnotations" => {
+            AttributeTag::RuntimeVisibleParameterAnnotations => {
                 let (input, parameter_annotations) =
                     length_count(be_u8, parameter_annotation)(input)?;
                 (
@@ -239,7 +240,7 @@ where
                     },
                 )
             }
-            b"RuntimeInvisibleParameterAnnotations" => {
+            AttributeTag::RuntimeInvisibleParameterAnnotations => {
                 let (input, parameter_annotations) =
                     length_count(be_u8, parameter_annotation)(input)?;
                 (
@@ -249,33 +250,33 @@ where
                     },
                 )
             }
-            b"RuntimeVisibleTypeAnnotations" => {
+            AttributeTag::RuntimeVisibleTypeAnnotations => {
                 let (input, annotations) = length_count(be_u8, type_annotation)(input)?;
                 (
                     input,
                     AttributeType::RuntimeVisibleTypeAnnotations { annotations },
                 )
             }
-            b"RuntimeInvisibleTypeAnnotations" => {
+            AttributeTag::RuntimeInvisibleTypeAnnotations => {
                 let (input, annotations) = length_count(be_u8, type_annotation)(input)?;
                 (
                     input,
                     AttributeType::RuntimeInvisibleTypeAnnotations { annotations },
                 )
             }
-            b"AnnotationDefault" => {
+            AttributeTag::AnnotationDefault => {
                 let (input, default_value) = element_value(input)?;
                 (input, AttributeType::AnnotationDefault { default_value })
             }
-            b"BootstrapMethods" => {
+            AttributeTag::BootstrapMethods => {
                 let (input, bootstrap_methods) = length_count(be_u16, bootstrap_method)(input)?;
                 (input, AttributeType::BootstrapMethods { bootstrap_methods })
             }
-            b"MethodParameters" => {
+            AttributeTag::MethodParameters => {
                 let (input, parameters) = length_count(be_u16, method_parameter)(input)?;
                 (input, AttributeType::MethodParameters { parameters })
             }
-            b"Module" => {
+            AttributeTag::Module => {
                 let (input, module_name_index) = be_u16(input)?;
                 let (input, module_flags) = be_u16(input)?;
                 let (input, module_version_index) = be_u16(input)?;
@@ -298,32 +299,31 @@ where
                     },
                 )
             }
-            b"ModulePackages" => {
+            AttributeTag::ModulePackages => {
                 let (input, package_index) = length_count(be_u16, be_u16)(input)?;
                 (input, AttributeType::ModulePackages { package_index })
             }
-            b"ModuleMainClass" => {
+            AttributeTag::ModuleMainClass => {
                 let (input, main_class_index) = be_u16(input)?;
                 (input, AttributeType::ModuleMainClass { main_class_index })
             }
-            b"NestHost" => {
+            AttributeTag::NestHost => {
                 let (input, host_class_index) = be_u16(input)?;
                 (input, AttributeType::NestHost { host_class_index })
             }
-            b"NestMembers" => {
+            AttributeTag::NestMembers => {
                 let (input, classes) = length_count(be_u16, be_u16)(input)?;
                 (input, AttributeType::NestMembers { classes })
             }
-            b"Record" => {
+            AttributeTag::Record => {
                 let (input, components) =
                     length_count(be_u16, record_component(constant_pool.clone()))(input)?;
                 (input, AttributeType::Record { components })
             }
-            b"PermittedSubclasses" => {
+            AttributeTag::PermittedSubclasses => {
                 let (input, classes) = length_count(be_u16, be_u16)(input)?;
                 (input, AttributeType::PermittedSubclasses { classes })
             }
-            _ => unreachable!("unexpected attribute type"),
         };
         Ok((
             input,
