@@ -30,8 +30,6 @@ pub fn new_entry(path: String) -> anyhow::Result<Box<dyn Entry>> {
         Ok(Box::new(CompositeEntry::new(path)?))
     } else if path.to_lowercase().ends_with(".jar") {
         Ok(Box::new(ZipEntry::new(path)?))
-    } else if path.ends_with("*") {
-        Ok(Box::new(CompositeEntry::from_wildcard(path)?))
     } else {
         Ok(Box::new(DirEntry::new(path)?))
     }
@@ -112,30 +110,14 @@ pub struct CompositeEntry {
 
 impl CompositeEntry {
     pub fn new(path: String) -> anyhow::Result<Self> {
-        let entries: Vec<Box<dyn Entry>> = path
-            .split(PATH_LIST_SEPARATOR)
-            .map(|path| new_entry(path.to_string()))
-            .collect::<anyhow::Result<Vec<Box<dyn Entry>>>>()?;
-        Ok(Self { entries, path })
-    }
-
-    pub fn from_wildcard(path: String) -> anyhow::Result<Self> {
         let entries = path
             .split(PATH_LIST_SEPARATOR)
-            .map(|mut path| {
-                let mut entries: Vec<Box<dyn Entry>> = Vec::new();
-                let dirs;
-                if path.ends_with("**") {
-                    path = path.trim_end_matches("**");
-                    dirs = WalkDir::new(path);
-                } else if path.ends_with("*") {
-                    path = path.trim_end_matches("*");
-                    dirs = WalkDir::new(path).max_depth(1);
-                } else {
-                    return entries;
-                }
+            .map(|path| {
+                let mut entries = Vec::new();
+                let dirs = WalkDir::new(path);
                 for entry in dirs {
                     let entry = entry.unwrap();
+                    // TODO: remove dirs where don't contain any jar/class file
                     if entry.file_type().is_file()
                         && entry.path().extension() != Some(std::ffi::OsStr::new(JAR_EXTENSION))
                     {
@@ -149,7 +131,7 @@ impl CompositeEntry {
                 entries
             })
             .flatten()
-            .collect::<Vec<Box<dyn Entry>>>();
+            .collect();
         Ok(Self { entries, path })
     }
 }
@@ -186,48 +168,34 @@ mod tests {
     #[test]
     fn dir_entry() {
         let entry = DirEntry::new("../data/jvm8/".to_string()).unwrap();
-        let bytes = entry.read_class("HelloWorld").unwrap();
+        let bytes = entry.read_class("HelloWorld.class").unwrap();
         assert_eq!(bytes[..4], [0xCA, 0xFE, 0xBA, 0xBE]);
     }
 
     #[test]
     fn zip_entry() {
-        let entry =
-            ZipEntry::new("../data/jvm8/elasticsearch-sql-core-7.16.3.jar".to_string()).unwrap();
-        let bytes = entry
-            .read_class("io/github/iamazy/elasticsearch/dsl/antlr4/ElasticsearchParser.class")
-            .unwrap();
+        let entry = ZipEntry::new("../data/jvm8/rt.jar".to_string()).unwrap();
+        let bytes = entry.read_class("java/lang/Object.class").unwrap();
         assert_eq!(bytes[..4], [0xCA, 0xFE, 0xBA, 0xBE]);
     }
 
     #[test]
     fn composite_entry() {
-        let entry = CompositeEntry::new(
-            "../data/jvm8/elasticsearch-sql-core-7.16.3.jar:../data/jvm8/".to_string(),
-        )
-        .unwrap();
+        let entry = CompositeEntry::new("../data/jvm8/rt.jar:../data/jvm8/".to_string()).unwrap();
         let bytes = entry.read_class("HelloWorld.class").unwrap();
         assert_eq!(bytes[..4], [0xCA, 0xFE, 0xBA, 0xBE]);
     }
 
     #[test]
     fn wildcard_entry() {
-        let entry = CompositeEntry::from_wildcard("../data/jvm8/**".to_string()).unwrap();
-        let bytes = entry.read_class("HelloWorld.class").unwrap();
+        let entry = CompositeEntry::new("../data/jvm8/".to_string()).unwrap();
+        let bytes = entry.read_class("java/lang/Object.class").unwrap();
         assert_eq!(bytes[..4], [0xCA, 0xFE, 0xBA, 0xBE]);
-
-        let bytes = entry
-            .read_class("io/github/iamazy/elasticsearch/dsl/antlr4/ElasticsearchParser.class")
-            .unwrap();
-        assert_eq!(bytes[..4], [0xCA, 0xFE, 0xBA, 0xBE]);
-        for entry in entry.entries {
-            println!("{}", entry.string());
-        }
     }
 
     #[test]
     fn read_jar() {
-        let file = std::fs::File::open("../data/jvm8/elasticsearch-sql-core-7.16.3.jar").unwrap();
+        let file = std::fs::File::open("../data/jvm8/rt.jar").unwrap();
         let mut zip = zip::ZipArchive::new(file).unwrap();
         for i in 0..zip.len() {
             let mut file = zip.by_index(i).unwrap();
