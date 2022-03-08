@@ -1,4 +1,3 @@
-use crate::opcode::OpCode::new;
 use std::io::Read;
 use std::path::Path;
 use walkdir::WalkDir;
@@ -25,7 +24,7 @@ pub trait Entry {
     fn read_class(&self, class_name: &str) -> anyhow::Result<Vec<u8>>;
 }
 
-pub fn new_entry(path: String) -> anyhow::Result<Box<dyn Entry>> {
+fn new_entry(path: String) -> anyhow::Result<Box<dyn Entry>> {
     if path.contains(PATH_LIST_SEPARATOR) {
         Ok(Box::new(CompositeEntry::new(path)?))
     } else if path.to_lowercase().ends_with(".jar") {
@@ -183,13 +182,6 @@ mod tests {
     fn composite_entry() {
         let entry = CompositeEntry::new("../data/jvm8/rt.jar:../data/jvm8/".to_string()).unwrap();
         let bytes = entry.read_class("HelloWorld.class").unwrap();
-        assert_eq!(bytes[..4], [0xCA, 0xFE, 0xBA, 0xBE]);
-    }
-
-    #[test]
-    fn wildcard_entry() {
-        let entry = CompositeEntry::new("../data/jvm8/".to_string()).unwrap();
-        let bytes = entry.read_class("java/lang/Object.class").unwrap();
         assert_eq!(bytes[..4], [0xCA, 0xFE, 0xBA, 0xBE]);
     }
 
