@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::io::Read;
 use std::path::Path;
 use walkdir::WalkDir;
@@ -24,11 +25,13 @@ pub trait Entry {
     fn read_class(&self, class_name: &str) -> anyhow::Result<Vec<u8>>;
 }
 
-fn new_entry(path: String) -> anyhow::Result<Box<dyn Entry>> {
+pub(crate) fn new_entry(path: String) -> anyhow::Result<Box<dyn Entry>> {
     if path.contains(PATH_LIST_SEPARATOR) {
         Ok(Box::new(CompositeEntry::new(path)?))
     } else if path.to_lowercase().ends_with(".jar") {
         Ok(Box::new(ZipEntry::new(path)?))
+    } else if path.to_lowercase().ends_with("*") {
+        Ok(Box::new(CompositeEntry::from_wildcard(path)?))
     } else {
         Ok(Box::new(DirEntry::new(path)?))
     }
@@ -109,28 +112,39 @@ pub struct CompositeEntry {
 
 impl CompositeEntry {
     pub fn new(path: String) -> anyhow::Result<Self> {
+        let entries: Vec<Box<dyn Entry>> = path
+            .split(PATH_LIST_SEPARATOR)
+            .map(|path| new_entry(path.to_string()))
+            .collect::<anyhow::Result<Vec<Box<dyn Entry>>>>()?;
+        Ok(Self { entries, path })
+    }
+
+    pub fn from_wildcard(path: String) -> anyhow::Result<Self> {
         let entries = path
             .split(PATH_LIST_SEPARATOR)
-            .map(|path| {
-                let mut entries = Vec::new();
-                let dirs = WalkDir::new(path);
-                for entry in dirs {
-                    let entry = entry.unwrap();
-                    // TODO: remove dirs where don't contain any jar/class file
-                    if entry.file_type().is_file()
-                        && entry.path().extension() != Some(std::ffi::OsStr::new(JAR_EXTENSION))
-                    {
-                        continue;
-                    }
-                    match new_entry(entry.path().to_str().unwrap().to_string()) {
-                        Ok(entry) => entries.push(entry),
-                        Err(_) => (),
+            .map(|mut path| {
+                let mut entries: Vec<Box<dyn Entry>> = Vec::new();
+                let path = path.trim_end_matches("*");
+                let path = Path::new(path);
+                if path.exists() && path.is_dir() {
+                    let dirs = WalkDir::new(path);
+                    for entry in dirs {
+                        let entry = entry.unwrap();
+                        if entry.file_type().is_file()
+                            && entry.path().extension() != Some(std::ffi::OsStr::new(JAR_EXTENSION))
+                        {
+                            continue;
+                        }
+                        match new_entry(entry.path().to_str().unwrap().to_string()) {
+                            Ok(entry) => entries.push(entry),
+                            Err(_) => (),
+                        }
                     }
                 }
                 entries
             })
             .flatten()
-            .collect();
+            .collect::<Vec<Box<dyn Entry>>>();
         Ok(Self { entries, path })
     }
 }
