@@ -15,10 +15,10 @@ const PATH_LIST_SEPARATOR: &str = ";";
 #[cfg(target_os = "linux")]
 const PATH_LIST_SEPARATOR: &str = ":";
 #[cfg(target_os = "macos")]
-const PATH_LIST_SEPARATOR: &str = ":";
-const CLASS_SEPARATOR: &str = ".";
-const CLASS_EXTENSION: &str = "class";
-const JAR_EXTENSION: &str = "jar";
+pub(crate) const PATH_LIST_SEPARATOR: &str = ":";
+pub(crate) const CLASS_SEPARATOR: &str = ".";
+pub(crate) const CLASS_EXTENSION: &str = "class";
+pub(crate) const JAR_EXTENSION: &str = "jar";
 
 pub trait Entry {
     fn string(&self) -> &String;

@@ -1,4 +1,4 @@
-use crate::classpath::entry::{new_entry, CompositeEntry, Entry};
+use crate::classpath::entry::{new_entry, CompositeEntry, Entry, CLASS_EXTENSION};
 use std::path::{Path, PathBuf};
 
 mod entry;
@@ -88,8 +88,7 @@ impl Entry for ClassPath {
     }
 
     fn read_class(&self, class_name: &str) -> anyhow::Result<Vec<u8>> {
-        let mut class_name = class_name.to_string();
-        class_name.push_str(".class");
+        let class_name = format!("{}.{}", class_name, CLASS_EXTENSION);
         match self.bootstrap.read_class(class_name.as_str()) {
             Ok(bytes) => return Ok(bytes),
             _ => {}
