@@ -1,5 +1,6 @@
 use crate::rtda::object::Object;
 use std::cell::RefCell;
+use std::mem;
 use std::rc::Rc;
 
 mod object;
@@ -13,11 +14,34 @@ struct Stack {
 
 impl Stack {
     pub fn new(max_size: usize) -> Stack {
-        Box();
         Stack {
             max_size,
             size: 0,
             top: None,
+        }
+    }
+
+    pub fn push(&mut self, mut frame: Frame) {
+        if self.size >= self.max_size {
+            panic!("java.lang.StackOverflowError");
+        }
+        let top = mem::replace(&mut self.top, None);
+        frame.lower = top;
+        self.top = Some(Box::new(frame));
+    }
+
+    pub fn pop(&mut self) -> Option<Box<Frame>> {
+        if self.top.is_none() {
+            None
+        } else {
+            match mem::replace(&mut self.top, None) {
+                None => None,
+                Some(frame) => {
+                    self.size -= 1;
+                    self.top = frame.lower;
+                    Some(frame)
+                }
+            }
         }
     }
 }
