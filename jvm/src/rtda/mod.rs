@@ -1,5 +1,4 @@
 use crate::rtda::object::Object;
-use std::cell::RefCell;
 use std::mem;
 use std::rc::Rc;
 
@@ -25,9 +24,9 @@ impl Stack {
         if self.size >= self.max_size {
             panic!("java.lang.StackOverflowError");
         }
-        let top = mem::replace(&mut self.top, None);
-        frame.lower = top;
+        frame.lower = mem::replace(&mut self.top, None);
         self.top = Some(Box::new(frame));
+        self.size += 1;
     }
 
     pub fn pop(&mut self) -> Option<Box<Frame>> {
@@ -37,9 +36,9 @@ impl Stack {
             match mem::replace(&mut self.top, None) {
                 None => None,
                 Some(mut frame) => {
-                    self.size -= 1;
                     let lower = mem::replace(&mut frame.lower, None);
                     self.top = lower;
+                    self.size -= 1;
                     Some(frame)
                 }
             }
