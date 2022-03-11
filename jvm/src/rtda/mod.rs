@@ -36,9 +36,10 @@ impl Stack {
         } else {
             match mem::replace(&mut self.top, None) {
                 None => None,
-                Some(frame) => {
+                Some(mut frame) => {
                     self.size -= 1;
-                    self.top = frame.lower;
+                    let lower = mem::replace(&mut frame.lower, None);
+                    self.top = lower;
                     Some(frame)
                 }
             }
