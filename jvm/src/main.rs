@@ -1,5 +1,8 @@
+#[allow(dead_code)]
 mod classpath;
-mod opcode;
+#[allow(dead_code)]
+mod instructions;
+#[allow(dead_code)]
 mod rtda;
 
 fn main() {

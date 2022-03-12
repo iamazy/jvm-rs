@@ -15,17 +15,17 @@ const PATH_LIST_SEPARATOR: &str = ";";
 #[cfg(target_os = "linux")]
 const PATH_LIST_SEPARATOR: &str = ":";
 #[cfg(target_os = "macos")]
-pub(crate) const PATH_LIST_SEPARATOR: &str = ":";
-pub(crate) const CLASS_SEPARATOR: &str = ".";
-pub(crate) const CLASS_EXTENSION: &str = "class";
-pub(crate) const JAR_EXTENSION: &str = "jar";
+pub const PATH_LIST_SEPARATOR: &str = ":";
+pub const CLASS_SEPARATOR: &str = ".";
+pub const CLASS_EXTENSION: &str = "class";
+pub const JAR_EXTENSION: &str = "jar";
 
 pub trait Entry {
     fn string(&self) -> &String;
     fn read_class(&self, class_name: &str) -> anyhow::Result<Vec<u8>>;
 }
 
-pub(crate) fn new_entry(path: String) -> anyhow::Result<Box<dyn Entry>> {
+pub fn new_entry(path: String) -> anyhow::Result<Box<dyn Entry>> {
     if path.contains(PATH_LIST_SEPARATOR) {
         Ok(Box::new(CompositeEntry::new(path)?))
     } else if path.to_lowercase().ends_with(".jar") {
@@ -122,7 +122,7 @@ impl CompositeEntry {
     pub fn from_wildcard(path: String) -> anyhow::Result<Self> {
         let entries = path
             .split(PATH_LIST_SEPARATOR)
-            .map(|mut path| {
+            .map(|path| {
                 let mut entries: Vec<Box<dyn Entry>> = Vec::new();
                 let path = path.trim_end_matches("*");
                 let path = Path::new(path);

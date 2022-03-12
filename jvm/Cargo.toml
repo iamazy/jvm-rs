@@ -7,10 +7,13 @@ edition = "2021"
 
 [dependencies]
 classfile = { path = "../classfile" }
-zip = "0.5.13"
+jvm-macros = { path = "../jvm-macros" }
+
+zip = "0.5"
 walkdir = "2"
 tokio = { version = "1", features = ["full"] }
-async-trait = "0.1.52"
+async-trait = "0.1"
 anyhow = "1"
 thiserror = "1"
 log = "0.4"
+bytes = "1"
