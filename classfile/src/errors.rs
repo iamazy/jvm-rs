@@ -1,5 +1,6 @@
 use crate::attribute::StackMapFrame;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Error {
     InvalidLength,
