@@ -1,2 +1,6 @@
 [workspace]
-members = ["classfile", "jvm"]
+members = [
+    "classfile",
+    "jvm",
+    "jvm-macros"
+]
