@@ -2,7 +2,7 @@ use crate::rtda::object::Object;
 mod object;
 mod thread;
 
-struct Stack {
+pub struct Stack {
     max_size: usize,
     size: usize,
     top: Option<Box<Frame>>,
@@ -47,7 +47,7 @@ impl Stack {
     }
 }
 
-struct Frame {
+pub struct Frame {
     lower: Option<Box<Frame>>,
     local_vars: LocalVars,
     operand_stack: Option<OperandStack>,
@@ -61,15 +61,19 @@ impl Frame {
             operand_stack: Some(OperandStack::new(max_stack)),
         }
     }
+
+    pub fn operand_stack(&mut self) -> &mut OperandStack {
+        self.operand_stack.as_mut().unwrap()
+    }
 }
 
 #[derive(Debug, Clone)]
-struct Slot {
+pub struct Slot {
     num: i32,
     r#ref: Option<Object>,
 }
 
-struct LocalVars(Vec<Slot>);
+pub struct LocalVars(Vec<Slot>);
 
 impl LocalVars {
     pub fn new(max_locals: usize) -> LocalVars {
@@ -131,7 +135,7 @@ impl LocalVars {
     }
 }
 
-struct OperandStack {
+pub struct OperandStack {
     size: u32,
     slots: Vec<Slot>,
 }
