@@ -1,7 +1,4 @@
 use crate::rtda::object::Object;
-use std::mem;
-use std::rc::Rc;
-
 mod object;
 mod thread;
 
@@ -24,24 +21,28 @@ impl Stack {
         if self.size >= self.max_size {
             panic!("java.lang.StackOverflowError");
         }
-        frame.lower = mem::replace(&mut self.top, None);
+        frame.lower = self.top.take();
         self.top = Some(Box::new(frame));
         self.size += 1;
     }
 
     pub fn pop(&mut self) -> Option<Box<Frame>> {
         if self.top.is_none() {
-            None
+            panic!("jvm stack is empty");
         } else {
-            match mem::replace(&mut self.top, None) {
-                None => None,
-                Some(mut frame) => {
-                    let lower = mem::replace(&mut frame.lower, None);
-                    self.top = lower;
-                    self.size -= 1;
-                    Some(frame)
-                }
-            }
+            self.top.take().map(|mut boxed_frame| {
+                self.top = boxed_frame.lower.take();
+                self.size -= 1;
+                boxed_frame
+            })
+        }
+    }
+
+    pub fn peek(&self) -> Option<&Frame> {
+        if self.top.is_none() {
+            panic!("jvm stack is empty");
+        } else {
+            self.top.as_ref().map(|boxed_frame| &**boxed_frame)
         }
     }
 }
@@ -52,14 +53,249 @@ struct Frame {
     operand_stack: Option<OperandStack>,
 }
 
+impl Frame {
+    pub fn new(max_locals: usize, max_stack: usize) -> Frame {
+        Frame {
+            lower: None,
+            local_vars: LocalVars::new(max_locals),
+            operand_stack: Some(OperandStack::new(max_stack)),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 struct Slot {
     num: i32,
     r#ref: Option<Object>,
 }
 
-type LocalVars = Vec<Slot>;
+struct LocalVars(Vec<Slot>);
+
+impl LocalVars {
+    pub fn new(max_locals: usize) -> LocalVars {
+        LocalVars(vec![
+            Slot {
+                num: 0,
+                r#ref: None
+            };
+            max_locals
+        ])
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn set_int(&mut self, index: usize, value: i32) {
+        self.0[index].num = value;
+    }
+
+    pub fn get_int(&self, index: usize) -> i32 {
+        self.0[index].num
+    }
+
+    pub fn set_float(&mut self, index: usize, value: f32) {
+        self.0[index].num = value.to_bits() as i32;
+    }
+
+    pub fn get_float(&self, index: usize) -> f32 {
+        f32::from_bits(self.0[index].num as u32)
+    }
+
+    pub fn set_long(&mut self, index: usize, value: i64) {
+        self.0[index].num = value as i32;
+        self.0[index + 1].num = (value >> 32) as i32;
+    }
+
+    pub fn get_long(&self, index: usize) -> i64 {
+        let low = self.0[index].num as u32;
+        let high = self.0[index + 1].num as u32;
+        ((high as i64) << 32) | (low as i64)
+    }
+
+    pub fn set_double(&mut self, index: usize, value: f64) {
+        let value = value.to_bits();
+        self.set_long(index, value as i64);
+    }
+
+    pub fn get_double(&self, index: usize) -> f64 {
+        f64::from_bits(self.get_long(index) as u64)
+    }
+
+    pub fn set_ref(&mut self, index: usize, value: Option<Object>) {
+        self.0[index].r#ref = value;
+    }
+
+    pub fn get_ref(&self, index: usize) -> Option<Object> {
+        self.0[index].r#ref.clone()
+    }
+}
 
 struct OperandStack {
     size: u32,
     slots: Vec<Slot>,
+}
+
+impl OperandStack {
+    pub fn new(max_stack: usize) -> OperandStack {
+        OperandStack {
+            size: 0,
+            slots: Vec::with_capacity(max_stack),
+        }
+    }
+
+    pub fn push_int(&mut self, value: i32) {
+        self.slots.push(Slot {
+            num: value,
+            r#ref: None,
+        });
+        self.size += 1;
+    }
+
+    pub fn pop_int(&mut self) -> i32 {
+        let value = self.slots.pop().unwrap().num;
+        self.size -= 1;
+        value
+    }
+
+    pub fn push_float(&mut self, value: f32) {
+        self.push_int(value.to_bits() as i32);
+    }
+
+    pub fn pop_float(&mut self) -> f32 {
+        f32::from_bits(self.pop_int() as u32)
+    }
+
+    pub fn push_long(&mut self, value: i64) {
+        self.slots.push(Slot {
+            num: (value >> 32) as i32,
+            r#ref: None,
+        });
+        self.slots.push(Slot {
+            num: value as i32,
+            r#ref: None,
+        });
+        self.size += 2;
+    }
+
+    pub fn pop_long(&mut self) -> i64 {
+        let low = self.slots.pop().unwrap().num as u32;
+        let high = self.slots.pop().unwrap().num as u32;
+        self.size -= 2;
+        ((high as i64) << 32) | (low as i64)
+    }
+
+    pub fn push_double(&mut self, value: f64) {
+        self.push_long(value.to_bits() as i64);
+    }
+
+    pub fn pop_double(&mut self) -> f64 {
+        f64::from_bits(self.pop_long() as u64)
+    }
+
+    pub fn push_ref(&mut self, value: Option<Object>) {
+        self.slots.push(Slot {
+            num: 0,
+            r#ref: value,
+        });
+        self.size += 1;
+    }
+
+    pub fn pop_ref(&mut self) -> Option<Object> {
+        let value = self.slots.pop().unwrap().r#ref.clone();
+        self.size -= 1;
+        value
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::rtda::{Frame, LocalVars, OperandStack, Slot, Stack};
+
+    fn stack_init() -> Stack {
+        let mut stack = Stack::new(10);
+        for i in 0..10 {
+            let mut local_vars = vec![];
+            for j in 0..i {
+                let slot = Slot {
+                    num: j as i32,
+                    r#ref: None,
+                };
+                local_vars.push(slot);
+            }
+            let frame = Frame {
+                lower: None,
+                local_vars: LocalVars(local_vars),
+                operand_stack: None,
+            };
+            stack.push(frame);
+        }
+        stack
+    }
+
+    #[test]
+    fn test_stack() {
+        let mut stack = stack_init();
+        for i in 0..10 {
+            let frame = stack.pop().unwrap();
+            let local_vars = frame.local_vars;
+            assert_eq!(local_vars.len(), 10 - i - 1);
+            println!("frame's local vars size: {:?}", local_vars.len());
+            for i in 0..local_vars.len() {
+                let slot = &local_vars.0[i];
+                assert_eq!(slot.num, i as i32);
+            }
+        }
+    }
+
+    #[test]
+    fn test_peek() {
+        let mut stack = stack_init();
+        let mut count = 0;
+        while let Some(frame) = stack.peek() {
+            assert_eq!(frame.local_vars.len(), 9);
+            count += 1;
+            if count >= 1000000 {
+                break;
+            }
+        }
+    }
+
+    #[test]
+    fn test_local_vars() {
+        let mut local_var = LocalVars::new(10);
+        local_var.set_int(0, 100);
+        local_var.set_int(1, -100);
+        local_var.set_long(2, 2997924580);
+        local_var.set_long(4, -2997924580);
+        local_var.set_float(6, std::f64::consts::PI as f32);
+        local_var.set_double(7, std::f64::consts::E);
+        local_var.set_ref(9, None);
+        println!("{}", local_var.get_int(0));
+        println!("{}", local_var.get_int(1));
+        println!("{}", local_var.get_long(2));
+        println!("{}", local_var.get_long(4));
+        println!("{}", local_var.get_float(6));
+        println!("{}", local_var.get_double(7));
+        println!("{:?}", local_var.get_ref(9));
+    }
+
+    #[test]
+    fn test_operand_stack() {
+        let mut operand_stack = OperandStack::new(10);
+        operand_stack.push_int(100);
+        operand_stack.push_int(-100);
+        operand_stack.push_long(2997924580);
+        operand_stack.push_long(-2997924580);
+        operand_stack.push_float(std::f64::consts::PI as f32);
+        operand_stack.push_double(std::f64::consts::E);
+        operand_stack.push_ref(None);
+        println!("{:?}", operand_stack.pop_ref());
+        println!("{:?}", operand_stack.pop_double());
+        println!("{:?}", operand_stack.pop_float());
+        println!("{:?}", operand_stack.pop_long());
+        println!("{:?}", operand_stack.pop_long());
+        println!("{:?}", operand_stack.pop_int());
+        println!("{:?}", operand_stack.pop_int());
+    }
 }
