@@ -1,6 +1,9 @@
 use crate::rtda::{Frame, Stack};
+use std::cell::RefCell;
+use std::sync::Arc;
 
-struct Thread {
+#[derive(Debug)]
+pub struct Thread {
     pc: usize,
     stack: Option<Stack>,
 }
@@ -18,11 +21,23 @@ impl Thread {
         self.stack.as_mut().unwrap().push(frame);
     }
 
-    pub fn pop_frame(&mut self) -> Option<Box<Frame>> {
-        self.stack.as_mut().unwrap().pop()
+    pub fn pop_frame(&mut self) -> Box<Frame> {
+        self.stack.as_mut().unwrap().pop().unwrap()
     }
 
     pub fn current_frame(&self) -> Option<&Frame> {
         self.stack.as_ref().and_then(Stack::peek)
+    }
+
+    pub fn pc(&self) -> usize {
+        self.pc
+    }
+
+    pub fn set_pc(&mut self, pc: usize) {
+        self.pc = pc;
+    }
+
+    pub fn new_frame(thread: Arc<RefCell<Thread>>, max_locals: usize, max_stack: usize) -> Frame {
+        Frame::new(thread, max_locals, max_stack)
     }
 }

@@ -1,7 +1,14 @@
-use crate::rtda::object::Object;
+use std::cell::RefCell;
+use std::ptr;
+use std::sync::Arc;
+
 mod object;
 mod thread;
 
+pub use crate::rtda::object::Object;
+pub use crate::rtda::thread::Thread;
+
+#[derive(Debug)]
 pub struct Stack {
     max_size: usize,
     size: usize,
@@ -47,32 +54,69 @@ impl Stack {
     }
 }
 
+#[derive(Debug)]
 pub struct Frame {
     lower: Option<Box<Frame>>,
     local_vars: LocalVars,
     operand_stack: Option<OperandStack>,
+    thread: Arc<RefCell<Thread>>,
+    next_pc: usize,
 }
 
 impl Frame {
-    pub fn new(max_locals: usize, max_stack: usize) -> Frame {
+    pub fn new(thread: Arc<RefCell<Thread>>, max_locals: usize, max_stack: usize) -> Frame {
         Frame {
             lower: None,
             local_vars: LocalVars::new(max_locals),
             operand_stack: Some(OperandStack::new(max_stack)),
+            thread,
+            next_pc: 0,
         }
     }
 
     pub fn operand_stack(&mut self) -> &mut OperandStack {
         self.operand_stack.as_mut().unwrap()
     }
+
+    pub fn local_vars(&mut self) -> &mut LocalVars {
+        &mut self.local_vars
+    }
+
+    pub fn next_pc(&mut self) -> usize {
+        self.next_pc
+    }
+
+    pub fn set_next_pc(&mut self, next_pc: usize) {
+        self.next_pc = next_pc;
+    }
+
+    pub fn thread(&mut self) -> Arc<RefCell<Thread>> {
+        self.thread.clone()
+    }
+
+    pub fn branch(&mut self, offset: i32) {
+        let pc = self.thread.borrow_mut().pc();
+        self.set_next_pc(pc + offset as usize);
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Slot {
     num: i32,
-    r#ref: Option<Object>,
+    r#ref: *mut Object,
 }
 
+impl Drop for Slot {
+    fn drop(&mut self) {
+        if !self.r#ref.is_null() {
+            unsafe {
+                ptr::drop_in_place(self.r#ref);
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct LocalVars(Vec<Slot>);
 
 impl LocalVars {
@@ -80,7 +124,7 @@ impl LocalVars {
         LocalVars(vec![
             Slot {
                 num: 0,
-                r#ref: None
+                r#ref: ptr::null_mut(),
             };
             max_locals
         ])
@@ -126,15 +170,16 @@ impl LocalVars {
         f64::from_bits(self.get_long(index) as u64)
     }
 
-    pub fn set_ref(&mut self, index: usize, value: Option<Object>) {
+    pub fn set_ref(&mut self, index: usize, value: *mut Object) {
         self.0[index].r#ref = value;
     }
 
-    pub fn get_ref(&self, index: usize) -> Option<Object> {
+    pub fn get_ref(&self, index: usize) -> *mut Object {
         self.0[index].r#ref.clone()
     }
 }
 
+#[derive(Debug)]
 pub struct OperandStack {
     size: u32,
     slots: Vec<Slot>,
@@ -151,7 +196,7 @@ impl OperandStack {
     pub fn push_int(&mut self, value: i32) {
         self.slots.push(Slot {
             num: value,
-            r#ref: None,
+            r#ref: ptr::null_mut(),
         });
         self.size += 1;
     }
@@ -173,11 +218,11 @@ impl OperandStack {
     pub fn push_long(&mut self, value: i64) {
         self.slots.push(Slot {
             num: (value >> 32) as i32,
-            r#ref: None,
+            r#ref: ptr::null_mut(),
         });
         self.slots.push(Slot {
             num: value as i32,
-            r#ref: None,
+            r#ref: ptr::null_mut(),
         });
         self.size += 2;
     }
@@ -197,7 +242,7 @@ impl OperandStack {
         f64::from_bits(self.pop_long() as u64)
     }
 
-    pub fn push_ref(&mut self, value: Option<Object>) {
+    pub fn push_ref(&mut self, value: *mut Object) {
         self.slots.push(Slot {
             num: 0,
             r#ref: value,
@@ -205,25 +250,40 @@ impl OperandStack {
         self.size += 1;
     }
 
-    pub fn pop_ref(&mut self) -> Option<Object> {
+    pub fn pop_ref(&mut self) -> *mut Object {
         let value = self.slots.pop().unwrap().r#ref.clone();
         self.size -= 1;
         value
+    }
+
+    pub fn push_slot(&mut self, slot: Slot) {
+        self.slots.push(slot);
+        self.size += 1;
+    }
+
+    pub fn pop_slot(&mut self) -> Slot {
+        self.size -= 1;
+        self.slots.pop().unwrap()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::rtda::{Frame, LocalVars, OperandStack, Slot, Stack};
+    use crate::rtda::object::Object;
+    use crate::rtda::{Frame, LocalVars, OperandStack, Slot, Stack, Thread};
+    use std::cell::RefCell;
+    use std::ptr;
+    use std::sync::Arc;
 
     fn stack_init() -> Stack {
         let mut stack = Stack::new(10);
+        let thread = Arc::new(RefCell::new(Thread::new()));
         for i in 0..10 {
             let mut local_vars = vec![];
             for j in 0..i {
                 let slot = Slot {
                     num: j as i32,
-                    r#ref: None,
+                    r#ref: ptr::null_mut(),
                 };
                 local_vars.push(slot);
             }
@@ -231,6 +291,8 @@ mod tests {
                 lower: None,
                 local_vars: LocalVars(local_vars),
                 operand_stack: None,
+                thread: thread.clone(),
+                next_pc: 0,
             };
             stack.push(frame);
         }
@@ -254,7 +316,7 @@ mod tests {
 
     #[test]
     fn test_peek() {
-        let mut stack = stack_init();
+        let stack = stack_init();
         let mut count = 0;
         while let Some(frame) = stack.peek() {
             assert_eq!(frame.local_vars.len(), 9);
@@ -274,7 +336,8 @@ mod tests {
         local_var.set_long(4, -2997924580);
         local_var.set_float(6, std::f64::consts::PI as f32);
         local_var.set_double(7, std::f64::consts::E);
-        local_var.set_ref(9, None);
+        let object = &mut Object {} as *mut Object;
+        local_var.set_ref(9, object);
         println!("{}", local_var.get_int(0));
         println!("{}", local_var.get_int(1));
         println!("{}", local_var.get_long(2));
@@ -293,8 +356,11 @@ mod tests {
         operand_stack.push_long(-2997924580);
         operand_stack.push_float(std::f64::consts::PI as f32);
         operand_stack.push_double(std::f64::consts::E);
-        operand_stack.push_ref(None);
-        println!("{:?}", operand_stack.pop_ref());
+        let object = &mut Object {} as *mut Object;
+        operand_stack.push_ref(object);
+        let pop_ref = operand_stack.pop_ref();
+        println!("{:?}", pop_ref);
+        assert_eq!(pop_ref, object);
         println!("{:?}", operand_stack.pop_double());
         println!("{:?}", operand_stack.pop_float());
         println!("{:?}", operand_stack.pop_long());

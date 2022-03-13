@@ -1,5 +1,5 @@
 use crate::rtda::Frame;
-use bytes::{Buf, BytesMut};
+use std::io::Cursor;
 
 mod comparisons;
 mod constants;
@@ -12,40 +12,149 @@ mod opcode;
 mod stack;
 mod stores;
 
-trait Instruction {
-    fn fetch_operands(&mut self, reader: &mut BytesMut);
+pub use {
+    comparisons::{
+        dcmp::{DCMPG, DCMPL},
+        fcmp::{FCMPG, FCMPL},
+        if_acmp::{IF_ACMPEQ, IF_ACMPNE},
+        if_icmp::{IF_ICMPEQ, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE, IF_ICMPLT, IF_ICMPNE},
+        ifcond::{IFEQ, IFGE, IFGT, IFLE, IFLT, IFNE},
+        lcmp::LCMP,
+    },
+    constants::{
+        ipush::{BIPUSH, SIPUSH},
+        r#const::{
+            ACONST_NULL, DCONST_0, DCONST_1, FCONST_0, FCONST_1, FCONST_2, ICONST_0, ICONST_1,
+            ICONST_2, ICONST_3, ICONST_4, ICONST_5, ICONST_M1, LCONST_0, LCONST_1,
+        },
+        NOP,
+    },
+    control::{
+        goto::GOTO,
+        switch::{LOOKUP_SWITCH, TABLE_SWITCH},
+    },
+    conversions::{
+        d2x::{D2F, D2I, D2L},
+        f2x::{F2D, F2I, F2L},
+        i2x::{I2B, I2C, I2D, I2F, I2L, I2S},
+        l2x::{L2D, L2F, L2I},
+    },
+    extended::{
+        goto_w::GOTO_W,
+        ifnull::{IFNONNULL, IFNULL},
+        wide::WIDE,
+    },
+    loads::{
+        aload::{ALOAD, ALOAD_0, ALOAD_1, ALOAD_2, ALOAD_3},
+        dload::{DLOAD, DLOAD_0, DLOAD_1, DLOAD_2, DLOAD_3},
+        fload::{FLOAD, FLOAD_0, FLOAD_1, FLOAD_2, FLOAD_3},
+        iload::{ILOAD, ILOAD_0, ILOAD_1, ILOAD_2, ILOAD_3},
+        lload::{LLOAD, LLOAD_0, LLOAD_1, LLOAD_2, LLOAD_3},
+    },
+    math::{
+        add::{DADD, FADD, IADD, LADD},
+        and::{IAND, LAND},
+        div::{DDIV, FDIV, IDIV, LDIV},
+        iinc::IINC,
+        mul::{DMUL, FMUL, IMUL, LMUL},
+        neg::{DNEG, FNEG, INEG, LNEG},
+        or::{IOR, LOR},
+        rem::{DREM, FREM, IREM, LREM},
+        sh::{ISHL, ISHR, IUSHR, LSHL, LSHR, LUSHR},
+        sub::{DSUB, FSUB, ISUB, LSUB},
+        xor::{IXOR, LXOR},
+    },
+    stack::{
+        dup::{DUP, DUP2, DUP2_X1, DUP2_X2, DUP_X1, DUP_X2},
+        pop::{POP, POP2},
+        swap::SWAP,
+    },
+    stores::{
+        astore::{ASTORE, ASTORE_0, ASTORE_1, ASTORE_2, ASTORE_3},
+        dstore::{DSTORE, DSTORE_0, DSTORE_1, DSTORE_2, DSTORE_3},
+        fstore::{FSTORE, FSTORE_0, FSTORE_1, FSTORE_2, FSTORE_3},
+        istore::{ISTORE, ISTORE_0, ISTORE_1, ISTORE_2, ISTORE_3},
+        lstore::{LSTORE, LSTORE_0, LSTORE_1, LSTORE_2, LSTORE_3},
+    },
+};
+
+pub trait InstructionReader<T>
+where
+    T: AsRef<[u8]>,
+{
+    fn fetch_operands(&mut self, reader: &mut Cursor<T>);
 }
 
-trait InstructionExecutor {
+pub trait InstructionExecutor {
     fn execute(&self, frame: &mut Frame);
 }
 
-struct BranchInstruction {
-    offset: i32,
+pub trait Instruction<T: AsRef<[u8]>>: InstructionReader<T> + InstructionExecutor {}
+
+macro_rules! register_inst {
+    ($($inst:ident),*) => {
+        $(impl<T: AsRef<[u8]>> Instruction<T> for $inst {})*
+    };
 }
 
-impl Instruction for BranchInstruction {
-    fn fetch_operands(&mut self, reader: &mut BytesMut) {
-        self.offset = reader.get_i16() as i32;
-    }
+register_inst! {
+    // comparisons
+    DCMPG, DCMPL,
+    FCMPG, FCMPL,
+    IF_ACMPEQ, IF_ACMPNE,
+    IF_ICMPEQ, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE, IF_ICMPLT, IF_ICMPNE,
+    IFEQ, IFGE, IFGT, IFLE, IFLT, IFNE,
+    LCMP,
+    // constants
+    BIPUSH, SIPUSH,
+    ACONST_NULL, DCONST_0, DCONST_1, FCONST_0, FCONST_1, FCONST_2, ICONST_0, ICONST_1,
+    ICONST_2, ICONST_3, ICONST_4, ICONST_5, ICONST_M1, LCONST_0, LCONST_1,
+    NOP,
+    // control
+    GOTO,
+    LOOKUP_SWITCH, TABLE_SWITCH,
+    // conversions
+    D2F, D2I, D2L,
+    F2D, F2I, F2L,
+    I2D, I2F, I2L, I2B, I2C, I2S,
+    L2D, L2F, L2I,
+    // extended
+    GOTO_W,
+    IFNONNULL, IFNULL,
+    WIDE,
+    // loads
+    ILOAD, ILOAD_0, ILOAD_1, ILOAD_2, ILOAD_3,
+    ALOAD, ALOAD_0, ALOAD_1, ALOAD_2, ALOAD_3,
+    DLOAD, DLOAD_0, DLOAD_1, DLOAD_2, DLOAD_3,
+    FLOAD, FLOAD_0, FLOAD_1, FLOAD_2, FLOAD_3,
+    LLOAD, LLOAD_0, LLOAD_1, LLOAD_2, LLOAD_3,
+    // math
+    IADD, FADD, DADD, LADD,
+    IAND, LAND,
+    DDIV, FDIV, IDIV, LDIV,
+    DMUL, FMUL, IMUL, LMUL,
+    DNEG, FNEG, INEG, LNEG,
+    DSUB, FSUB, ISUB, LSUB,
+    IOR, LOR,
+    IXOR, LXOR,
+    IINC,
+    DREM, FREM, IREM, LREM,
+    ISHL, ISHR, IUSHR, LSHL, LSHR, LUSHR,
+    // stack
+    DUP, DUP2, DUP2_X1, DUP2_X2, DUP_X1, DUP_X2,
+    POP, POP2,
+    SWAP,
+    // lstore
+    ASTORE, ASTORE_0, ASTORE_1, ASTORE_2, ASTORE_3,
+    DSTORE, DSTORE_0, DSTORE_1, DSTORE_2, DSTORE_3,
+    FSTORE, FSTORE_0, FSTORE_1, FSTORE_2, FSTORE_3,
+    ISTORE, ISTORE_0, ISTORE_1, ISTORE_2, ISTORE_3,
+    LSTORE, LSTORE_0, LSTORE_1, LSTORE_2, LSTORE_3
 }
 
-pub struct Index8Instruction {
-    index: u32,
-}
-
-impl Instruction for Index8Instruction {
-    fn fetch_operands(&mut self, reader: &mut BytesMut) {
-        self.index = reader.get_u8() as u32;
-    }
-}
-
-pub struct Index16Instruction {
-    index: u32,
-}
-
-impl Instruction for Index16Instruction {
-    fn fetch_operands(&mut self, reader: &mut BytesMut) {
-        self.index = reader.get_u16() as u32;
+pub fn new_inst<T: AsRef<[u8]>>(opcode: u8) -> Box<dyn Instruction<T>> {
+    match opcode {
+        0x00 => Box::new(NOP {}),
+        _ => unimplemented!("implement me"),
     }
 }
