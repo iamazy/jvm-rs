@@ -54,8 +54,8 @@ fn parse_boot_ext_class_path(jre_opt: String) -> anyhow::Result<(Box<dyn Entry>,
     }
 }
 
-fn get_jre_dir(jre_opt: &String) -> anyhow::Result<PathBuf> {
-    if jre_opt.len() > 0 {
+fn get_jre_dir(jre_opt: &str) -> anyhow::Result<PathBuf> {
+    if !jre_opt.is_empty() {
         let path = PathBuf::from(jre_opt);
         if path.exists() {
             return Ok(path);
@@ -89,13 +89,11 @@ impl Entry for ClassPath {
 
     fn read_class(&self, class_name: &str) -> anyhow::Result<Vec<u8>> {
         let class_name = format!("{}.{}", class_name, CLASS_EXTENSION);
-        match self.bootstrap.read_class(class_name.as_str()) {
-            Ok(bytes) => return Ok(bytes),
-            _ => {}
+        if let Ok(bytes) = self.bootstrap.read_class(class_name.as_str()) {
+            return Ok(bytes);
         }
-        match self.extension.read_class(class_name.as_str()) {
-            Ok(bytes) => return Ok(bytes),
-            _ => {}
+        if let Ok(bytes) = self.extension.read_class(class_name.as_str()) {
+            return Ok(bytes);
         }
         self.user.read_class(class_name.as_str())
     }

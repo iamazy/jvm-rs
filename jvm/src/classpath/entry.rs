@@ -30,7 +30,7 @@ pub fn new_entry(path: String) -> anyhow::Result<Box<dyn Entry>> {
         Ok(Box::new(CompositeEntry::new(path)?))
     } else if path.to_lowercase().ends_with(".jar") {
         Ok(Box::new(ZipEntry::new(path)?))
-    } else if path.to_lowercase().ends_with("*") {
+    } else if path.to_lowercase().ends_with('*') {
         Ok(Box::new(CompositeEntry::from_wildcard(path)?))
     } else {
         Ok(Box::new(DirEntry::new(path)?))
@@ -122,9 +122,9 @@ impl CompositeEntry {
     pub fn from_wildcard(path: String) -> anyhow::Result<Self> {
         let entries = path
             .split(PATH_LIST_SEPARATOR)
-            .map(|path| {
+            .flat_map(|path| {
                 let mut entries: Vec<Box<dyn Entry>> = Vec::new();
-                let path = path.trim_end_matches("*");
+                let path = path.trim_end_matches('*');
                 let path = Path::new(path);
                 if path.exists() && path.is_dir() {
                     let dirs = WalkDir::new(path);
@@ -135,15 +135,13 @@ impl CompositeEntry {
                         {
                             continue;
                         }
-                        match new_entry(entry.path().to_str().unwrap().to_string()) {
-                            Ok(entry) => entries.push(entry),
-                            Err(_) => (),
+                        if let Ok(entry) = new_entry(entry.path().to_str().unwrap().to_string()) {
+                            entries.push(entry);
                         }
                     }
                 }
                 entries
             })
-            .flatten()
             .collect::<Vec<Box<dyn Entry>>>();
         Ok(Self { entries, path })
     }
@@ -158,7 +156,7 @@ impl Entry for CompositeEntry {
         for entry in self.entries.iter() {
             match entry.read_class(class_name) {
                 Ok(bytes) => {
-                    if bytes.len() > 0 {
+                    if !bytes.is_empty() {
                         return Ok(bytes);
                     } else {
                         continue;

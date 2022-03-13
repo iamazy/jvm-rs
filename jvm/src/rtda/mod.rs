@@ -49,7 +49,7 @@ impl Stack {
         if self.top.is_none() {
             panic!("jvm stack is empty");
         } else {
-            self.top.as_ref().map(|boxed_frame| &**boxed_frame)
+            self.top.as_deref().map(|boxed_frame| boxed_frame)
         }
     }
 }
@@ -175,7 +175,7 @@ impl LocalVars {
     }
 
     pub fn get_ref(&self, index: usize) -> *mut Object {
-        self.0[index].r#ref.clone()
+        self.0[index].r#ref
     }
 }
 
@@ -251,7 +251,7 @@ impl OperandStack {
     }
 
     pub fn pop_ref(&mut self) -> *mut Object {
-        let value = self.slots.pop().unwrap().r#ref.clone();
+        let value = self.slots.pop().unwrap().r#ref;
         self.size -= 1;
         value
     }
