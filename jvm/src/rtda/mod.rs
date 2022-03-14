@@ -49,7 +49,7 @@ impl Stack {
         if self.top.is_none() {
             panic!("jvm stack is empty");
         } else {
-            self.top.as_deref().map(|boxed_frame| boxed_frame)
+            self.top.as_deref()
         }
     }
 }
