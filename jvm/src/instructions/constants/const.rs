@@ -8,148 +8,89 @@ use std::ptr;
 #[allow(non_camel_case_types)]
 pub struct ACONST_NULL;
 
-impl InstructionExecutor for ACONST_NULL {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_ref(ptr::null_mut());
-    }
-}
-
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct DCONST_0;
-
-impl InstructionExecutor for DCONST_0 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_double(0.0);
-    }
-}
 
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct DCONST_1;
 
-impl InstructionExecutor for DCONST_1 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_double(1.0);
-    }
-}
-
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct FCONST_0;
-
-impl InstructionExecutor for FCONST_0 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_float(0.0);
-    }
-}
 
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct FCONST_1;
 
-impl InstructionExecutor for FCONST_1 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_float(1.0);
-    }
-}
-
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct FCONST_2;
-
-impl InstructionExecutor for FCONST_2 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_float(2.0);
-    }
-}
 
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct ICONST_M1;
 
-impl InstructionExecutor for ICONST_M1 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_int(-1);
-    }
-}
-
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct ICONST_0;
-
-impl InstructionExecutor for ICONST_0 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_int(0);
-    }
-}
 
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct ICONST_1;
 
-impl InstructionExecutor for ICONST_1 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_int(1);
-    }
-}
-
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct ICONST_2;
-
-impl InstructionExecutor for ICONST_2 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_int(2);
-    }
-}
 
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct ICONST_3;
 
-impl InstructionExecutor for ICONST_3 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_int(3);
-    }
-}
-
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct ICONST_4;
-
-impl InstructionExecutor for ICONST_4 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_int(4);
-    }
-}
 
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct ICONST_5;
 
-impl InstructionExecutor for ICONST_5 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_int(5);
-    }
-}
-
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct LCONST_0;
-
-impl InstructionExecutor for LCONST_0 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_long(0);
-    }
-}
 
 #[derive(NoOperand)]
 #[allow(non_camel_case_types)]
 pub struct LCONST_1;
 
-impl InstructionExecutor for LCONST_1 {
-    fn execute(&self, frame: &mut Frame) {
-        frame.operand_stack().push_long(1);
-    }
+macro_rules! register_const {
+    ($(($inst:ident, $stack:ident, $expr:expr)),*) => {
+        $(
+            impl InstructionExecutor for $inst {
+                fn execute(&self, frame: &mut Frame) {
+                    let $stack = frame.operand_stack();
+                    $expr;
+                }
+            }
+        )*
+    };
+}
+
+register_const!{
+    (ACONST_NULL, stack, stack.push_ref(ptr::null_mut())),
+    (DCONST_0, stack, stack.push_double(0.0)),
+    (DCONST_1, stack, stack.push_double(1.0)),
+    (FCONST_0, stack, stack.push_float(0.0)),
+    (FCONST_1, stack, stack.push_float(1.0)),
+    (FCONST_2, stack, stack.push_float(2.0)),
+    (ICONST_M1, stack, stack.push_int(-1)),
+    (ICONST_0, stack, stack.push_int(0)),
+    (ICONST_1, stack, stack.push_int(1)),
+    (ICONST_2, stack, stack.push_int(2)),
+    (ICONST_3, stack, stack.push_int(3)),
+    (ICONST_4, stack, stack.push_int(4)),
+    (ICONST_5, stack, stack.push_int(5)),
+    (LCONST_0, stack, stack.push_long(0)),
+    (LCONST_1, stack, stack.push_long(1))
 }

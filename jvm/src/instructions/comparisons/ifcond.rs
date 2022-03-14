@@ -10,28 +10,10 @@ pub struct IFEQ {
     offset: i32,
 }
 
-impl InstructionExecutor for IFEQ {
-    fn execute(&self, frame: &mut Frame) {
-        let val = frame.operand_stack().pop_int();
-        if val == 0 {
-            frame.branch(self.offset);
-        }
-    }
-}
-
 #[derive(Branch)]
 #[allow(non_camel_case_types)]
 pub struct IFNE {
     offset: i32,
-}
-
-impl InstructionExecutor for IFNE {
-    fn execute(&self, frame: &mut Frame) {
-        let val = frame.operand_stack().pop_int();
-        if val != 0 {
-            frame.branch(self.offset);
-        }
-    }
 }
 
 #[derive(Branch)]
@@ -40,28 +22,10 @@ pub struct IFLE {
     offset: i32,
 }
 
-impl InstructionExecutor for IFLE {
-    fn execute(&self, frame: &mut Frame) {
-        let val = frame.operand_stack().pop_int();
-        if val <= 0 {
-            frame.branch(self.offset);
-        }
-    }
-}
-
 #[derive(Branch)]
 #[allow(non_camel_case_types)]
 pub struct IFLT {
     offset: i32,
-}
-
-impl InstructionExecutor for IFLT {
-    fn execute(&self, frame: &mut Frame) {
-        let val = frame.operand_stack().pop_int();
-        if val < 0 {
-            frame.branch(self.offset);
-        }
-    }
 }
 
 #[derive(Branch)]
@@ -70,26 +34,32 @@ pub struct IFGE {
     offset: i32,
 }
 
-impl InstructionExecutor for IFGE {
-    fn execute(&self, frame: &mut Frame) {
-        let val = frame.operand_stack().pop_int();
-        if val >= 0 {
-            frame.branch(self.offset);
-        }
-    }
-}
-
 #[derive(Branch)]
 #[allow(non_camel_case_types)]
 pub struct IFGT {
     offset: i32,
 }
 
-impl InstructionExecutor for IFGT {
-    fn execute(&self, frame: &mut Frame) {
-        let val = frame.operand_stack().pop_int();
-        if val > 0 {
-            frame.branch(self.offset);
-        }
-    }
+macro_rules! register_ifcond {
+    ($(($inst:ident, $val:ident, $expr:expr)),*) => {
+        $(
+            impl InstructionExecutor for $inst {
+                fn execute(&self, frame: &mut Frame) {
+                    let $val = frame.operand_stack().pop_int();
+                    if $expr {
+                        frame.branch(self.offset);
+                    }
+                }
+            }
+        )*
+    };
+}
+
+register_ifcond! {
+    (IFEQ, val, val == 0),
+    (IFNE, val, val != 0),
+    (IFLE, val, val <= 0),
+    (IFLT, val, val < 0),
+    (IFGE, val, val >=0),
+    (IFGT, val, val > 0)
 }
