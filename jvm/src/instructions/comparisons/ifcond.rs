@@ -4,45 +4,15 @@ use bytes::Buf;
 use jvm_macros::Branch;
 use std::io::Cursor;
 
-#[derive(Branch)]
-#[allow(non_camel_case_types)]
-pub struct IFEQ {
-    offset: i32,
-}
-
-#[derive(Branch)]
-#[allow(non_camel_case_types)]
-pub struct IFNE {
-    offset: i32,
-}
-
-#[derive(Branch)]
-#[allow(non_camel_case_types)]
-pub struct IFLE {
-    offset: i32,
-}
-
-#[derive(Branch)]
-#[allow(non_camel_case_types)]
-pub struct IFLT {
-    offset: i32,
-}
-
-#[derive(Branch)]
-#[allow(non_camel_case_types)]
-pub struct IFGE {
-    offset: i32,
-}
-
-#[derive(Branch)]
-#[allow(non_camel_case_types)]
-pub struct IFGT {
-    offset: i32,
-}
-
 macro_rules! register_ifcond {
     ($(($inst:ident, $val:ident, $expr:expr)),*) => {
         $(
+            #[derive(Branch)]
+            #[allow(non_camel_case_types)]
+            pub struct $inst {
+                offset: i32,
+            }
+
             impl InstructionExecutor for $inst {
                 fn execute(&self, frame: &mut Frame) {
                     let $val = frame.operand_stack().pop_int();

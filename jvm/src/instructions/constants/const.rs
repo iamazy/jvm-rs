@@ -4,69 +4,13 @@ use jvm_macros::NoOperand;
 use std::io::Cursor;
 use std::ptr;
 
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct ACONST_NULL;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct DCONST_0;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct DCONST_1;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct FCONST_0;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct FCONST_1;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct FCONST_2;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct ICONST_M1;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct ICONST_0;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct ICONST_1;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct ICONST_2;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct ICONST_3;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct ICONST_4;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct ICONST_5;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct LCONST_0;
-
-#[derive(NoOperand)]
-#[allow(non_camel_case_types)]
-pub struct LCONST_1;
-
 macro_rules! register_const {
     ($(($inst:ident, $stack:ident, $expr:expr)),*) => {
         $(
+            #[derive(NoOperand)]
+            #[allow(non_camel_case_types)]
+            pub struct $inst;
+
             impl InstructionExecutor for $inst {
                 fn execute(&self, frame: &mut Frame) {
                     let $stack = frame.operand_stack();
@@ -77,7 +21,7 @@ macro_rules! register_const {
     };
 }
 
-register_const!{
+register_const! {
     (ACONST_NULL, stack, stack.push_ref(ptr::null_mut())),
     (DCONST_0, stack, stack.push_double(0.0)),
     (DCONST_1, stack, stack.push_double(1.0)),
