@@ -1,7 +1,7 @@
 use crate::rtda::Frame;
 
 macro_rules! register_if_cmp {
-    ($(($inst:ident, $func:ident, | $val1:ident, $val2:ident| $expr:expr)),*) => {
+    ($(($inst:ident, $func:ident, $op:tt)),*) => {
         $(
             #[derive(Branch)]
             #[allow(non_camel_case_types)]
@@ -11,9 +11,9 @@ macro_rules! register_if_cmp {
 
             impl InstructionExecutor for $inst {
                 fn execute(&self, frame: &mut Frame) {
-                    let $val2 = frame.operand_stack().$func();
-                    let $val1 = frame.operand_stack().$func();
-                    if $expr {
+                    let val2 = frame.operand_stack().$func();
+                    let val1 = frame.operand_stack().$func();
+                    if val1 $op val2 {
                         frame.branch(self.offset)
                     }
                 }
