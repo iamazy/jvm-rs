@@ -273,7 +273,7 @@ where
                 (input, AttributeType::BootstrapMethods { bootstrap_methods })
             }
             AttributeTag::MethodParameters => {
-                let (input, parameters) = length_count(be_u16, method_parameter)(input)?;
+                let (input, parameters) = length_count(be_u8, method_parameter)(input)?;
                 (input, AttributeType::MethodParameters { parameters })
             }
             AttributeTag::Module => {
@@ -323,6 +323,15 @@ where
             AttributeTag::PermittedSubclasses => {
                 let (input, classes) = length_count(be_u16, be_u16)(input)?;
                 (input, AttributeType::PermittedSubclasses { classes })
+            }
+            AttributeTag::Unknown => {
+                let (input, data) = take(attribute_length)(input)?;
+                (
+                    input,
+                    AttributeType::Unknown {
+                        data: data.to_vec(),
+                    },
+                )
             }
         };
         Ok((

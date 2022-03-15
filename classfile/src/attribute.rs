@@ -101,6 +101,9 @@ pub enum AttributeType {
     PermittedSubclasses {
         classes: Vec<u16>,
     },
+    Unknown {
+        data: Vec<u8>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -135,6 +138,7 @@ pub enum AttributeTag {
     NestMembers,
     Record,
     PermittedSubclasses,
+    Unknown,
 }
 
 impl From<&[u8]> for AttributeTag {
@@ -174,7 +178,7 @@ impl From<&[u8]> for AttributeTag {
             b"NestMembers" => AttributeTag::NestMembers,
             b"Record" => AttributeTag::Record,
             b"PermittedSubclasses" => AttributeTag::PermittedSubclasses,
-            _ => unreachable!("invalid attribute tag"),
+            _ => AttributeTag::Unknown,
         }
     }
 }
