@@ -16,10 +16,9 @@ pub use {
     comparisons::{
         dcmp::{DCMPG, DCMPL},
         fcmp::{FCMPG, FCMPL},
-        if_acmp::{IF_ACMPEQ, IF_ACMPNE},
-        if_icmp::{IF_ICMPEQ, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE, IF_ICMPLT, IF_ICMPNE},
         ifcond::{IFEQ, IFGE, IFGT, IFLE, IFLT, IFNE},
         lcmp::LCMP,
+        IF_ACMPEQ, IF_ACMPNE, IF_ICMPEQ, IF_ICMPGE, IF_ICMPGT, IF_ICMPLE, IF_ICMPLT, IF_ICMPNE,
     },
     constants::{
         ipush::{BIPUSH, SIPUSH},
@@ -33,12 +32,7 @@ pub use {
         goto::GOTO,
         switch::{LOOKUP_SWITCH, TABLE_SWITCH},
     },
-    conversions::{
-        D2F, D2I, D2L,
-        F2D, F2I, F2L,
-        I2B, I2C, I2D, I2F, I2L, I2S,
-        L2D, L2F, L2I,
-    },
+    conversions::{D2F, D2I, D2L, F2D, F2I, F2L, I2B, I2C, I2D, I2F, I2L, I2S, L2D, L2F, L2I},
     extended::{
         goto_w::GOTO_W,
         ifnull::{IFNONNULL, IFNULL},
@@ -52,17 +46,12 @@ pub use {
         lload::{LLOAD, LLOAD_0, LLOAD_1, LLOAD_2, LLOAD_3},
     },
     math::{
-        DADD, FADD, IADD, LADD,
-        IAND, LAND,
-        DDIV, FDIV, IDIV, LDIV,
         iinc::IINC,
-        DMUL, FMUL, IMUL, LMUL,
         neg::{DNEG, FNEG, INEG, LNEG},
-        IXOR, LXOR,
-        IOR, LOR,
         rem::{DREM, FREM, IREM, LREM},
         sh::{ISHL, ISHR, IUSHR, LSHL, LSHR, LUSHR},
-        DSUB, FSUB, ISUB, LSUB,
+        DADD, DDIV, DMUL, DSUB, FADD, FDIV, FMUL, FSUB, IADD, IAND, IDIV, IMUL, IOR, ISUB, IXOR,
+        LADD, LAND, LDIV, LMUL, LOR, LSUB, LXOR,
     },
     stack::{
         dup::{DUP, DUP2, DUP2_X1, DUP2_X2, DUP_X1, DUP_X2},

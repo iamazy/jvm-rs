@@ -1,4 +1,8 @@
+use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::Frame;
+use bytes::Buf;
+use jvm_macros::Branch;
+use std::io::Cursor;
 
 macro_rules! register_if_cmp {
     ($(($inst:ident, $func:ident, $op:tt)),*) => {
@@ -50,9 +54,21 @@ fn_cmp! {
     (fcmp, pop_float)
 }
 
+register_if_cmp! {
+    (IF_ACMPEQ, pop_ref, ==),
+    (IF_ACMPNE, pop_ref, !=)
+}
+
+register_if_cmp! {
+    (IF_ICMPEQ, pop_int, ==),
+    (IF_ICMPNE, pop_int, !=),
+    (IF_ICMPLE, pop_int, <=),
+    (IF_ICMPLT, pop_int, <),
+    (IF_ICMPGE, pop_int, >=),
+    (IF_ICMPGT, pop_int, >)
+}
+
 pub(crate) mod dcmp;
 pub(crate) mod fcmp;
-pub(crate) mod if_acmp;
-pub(crate) mod if_icmp;
 pub(crate) mod ifcond;
 pub(crate) mod lcmp;

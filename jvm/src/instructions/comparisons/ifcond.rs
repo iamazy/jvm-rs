@@ -5,7 +5,7 @@ use jvm_macros::Branch;
 use std::io::Cursor;
 
 macro_rules! register_ifcond {
-    ($(($inst:ident, $val:ident, $expr:expr)),*) => {
+    ($(($inst:ident, $sign:tt)),*) => {
         $(
             #[derive(Branch)]
             #[allow(non_camel_case_types)]
@@ -15,8 +15,8 @@ macro_rules! register_ifcond {
 
             impl InstructionExecutor for $inst {
                 fn execute(&self, frame: &mut Frame) {
-                    let $val = frame.operand_stack().pop_int();
-                    if $expr {
+                    let val = frame.operand_stack().pop_int();
+                    if val $sign 0 {
                         frame.branch(self.offset);
                     }
                 }
@@ -26,10 +26,10 @@ macro_rules! register_ifcond {
 }
 
 register_ifcond! {
-    (IFEQ, val, val == 0),
-    (IFNE, val, val != 0),
-    (IFLE, val, val <= 0),
-    (IFLT, val, val < 0),
-    (IFGE, val, val >=0),
-    (IFGT, val, val > 0)
+    (IFEQ, ==),
+    (IFNE, !=),
+    (IFLE, <=),
+    (IFLT, <),
+    (IFGE, >=),
+    (IFGT, >)
 }
