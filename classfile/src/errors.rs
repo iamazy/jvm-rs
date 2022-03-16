@@ -28,7 +28,4 @@ pub enum Error {
     InvalidFrameType,
 
     MismatchFrameType(u8, StackMapFrame),
-
-    // Attribute
-    InvalidAttributeName(String),
 }

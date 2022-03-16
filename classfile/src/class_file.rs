@@ -12,7 +12,7 @@ pub struct ClassFile<'a> {
     pub this_class: u16,
     pub super_class: u16,
     pub interfaces: Vec<u16>,
-    pub fields: Vec<FieldInfo>,
-    pub methods: Vec<MethodInfo>,
-    pub attributes: Vec<Attribute>,
+    pub fields: Vec<FieldInfo<'a>>,
+    pub methods: Vec<MethodInfo<'a>>,
+    pub attributes: Vec<Attribute<'a>>,
 }

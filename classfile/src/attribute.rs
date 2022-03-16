@@ -1,17 +1,17 @@
 #[derive(Debug, Clone)]
-pub struct Attribute {
+pub struct Attribute<'a> {
     pub attribute_name_index: u16,
     pub attribute_length: u32,
-    pub attribute_type: AttributeType,
+    pub attribute_type: AttributeType<'a>,
 }
 
 #[derive(Debug, Clone)]
-pub enum AttributeType {
+pub enum AttributeType<'a> {
     ConstantValue {
         constant_value_index: u16,
     },
     Code {
-        code: CodeAttribute,
+        code: CodeAttribute<'a>,
     },
     StackMapTable {
         entries: Vec<StackMap>,
@@ -96,13 +96,13 @@ pub enum AttributeType {
         classes: Vec<u16>,
     },
     Record {
-        components: Vec<RecordComponent>,
+        components: Vec<RecordComponent<'a>>,
     },
     PermittedSubclasses {
         classes: Vec<u16>,
     },
     Unknown {
-        data: Vec<u8>,
+        data: &'a [u8],
     },
 }
 
@@ -184,12 +184,12 @@ impl From<&[u8]> for AttributeTag {
 }
 
 #[derive(Debug, Clone)]
-pub struct CodeAttribute {
+pub struct CodeAttribute<'a> {
     pub max_stack: u16,
     pub max_locals: u16,
     pub code: Vec<u8>,
     pub exception_table: Vec<Exception>,
-    pub attributes: Vec<Attribute>,
+    pub attributes: Vec<Attribute<'a>>,
 }
 
 #[derive(Debug, Clone)]
@@ -397,8 +397,8 @@ pub struct Provide {
 }
 
 #[derive(Debug, Clone)]
-pub struct RecordComponent {
+pub struct RecordComponent<'a> {
     pub name_index: u16,
     pub descriptor_index: u16,
-    pub attributes: Vec<Attribute>,
+    pub attributes: Vec<Attribute<'a>>,
 }
