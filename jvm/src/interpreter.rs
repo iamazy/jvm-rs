@@ -12,7 +12,7 @@ fn interpret(method_info: &classfile::MethodInfo) {
         let max_stack = code.max_stack as usize;
         let frame = Thread::new_frame(thread.clone(), max_locals, max_stack);
         thread.borrow_mut().push_frame(frame);
-        loop_interpret(thread, &mut Cursor::new(code.code.as_slice()));
+        loop_interpret(thread, &mut Cursor::new(code.code));
     }
 }
 

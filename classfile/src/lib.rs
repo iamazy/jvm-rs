@@ -348,7 +348,8 @@ where
     move |input: &[u8]| {
         let (input, max_stack) = be_u16(input)?;
         let (input, max_locals) = be_u16(input)?;
-        let (input, code) = length_count(be_u32, be_u8)(input)?;
+        let (input, code_length) = be_u32(input)?;
+        let (input, code) = take(code_length)(input)?;
         let (input, exception_table) = length_count(be_u16, exception)(input)?;
         let (input, attributes) = length_count(be_u16, attribute(constant_pool.clone()))(input)?;
         Ok((
