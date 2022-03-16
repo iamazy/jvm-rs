@@ -9,7 +9,7 @@ pub use constant::{Constant, ConstantTag};
 pub use field::FieldInfo;
 pub use method::MethodInfo;
 
-use crate::attribute::AttributeTag;
+use crate::attribute::{AttributeTag, ElementValuePair, TypePathPair};
 use nom::bytes::complete::{tag, take};
 use nom::combinator::{all_consuming, map, success};
 use nom::error::{context, ErrorKind, ParseError, VerboseError, VerboseErrorKind};
@@ -575,7 +575,7 @@ fn local_variable_type(input: &[u8]) -> Res<&[u8], LocalVariableType> {
 fn annotation(input: &[u8]) -> Res<&[u8], Annotation> {
     context(
         "annotation",
-        pair(be_u16, length_count(be_u16, pair(be_u16, element_value))),
+        pair(be_u16, length_count(be_u16, element_value_pair)),
     )(input)
     .map(|(input, (type_index, element_value_pairs))| {
         (
@@ -586,6 +586,20 @@ fn annotation(input: &[u8]) -> Res<&[u8], Annotation> {
             },
         )
     })
+}
+
+fn element_value_pair(input: &[u8]) -> Res<&[u8], ElementValuePair> {
+    context("element value pair", pair(be_u16, element_value))(input).map(
+        |(input, (element_name_index, value))| {
+            (
+                input,
+                ElementValuePair {
+                    element_name_index,
+                    value,
+                },
+            )
+        },
+    )
 }
 
 fn element_value(input: &[u8]) -> Res<&[u8], ElementValue> {
@@ -602,12 +616,15 @@ fn element_value(input: &[u8]) -> Res<&[u8], ElementValue> {
         }
         b'e' => {
             let (input, type_name_index) = be_u16(input)?;
-            let (input, const_value_index) = be_u16(input)?;
+            let (input, const_name_index) = be_u16(input)?;
             Ok((
                 input,
                 ElementValue {
                     tag,
-                    value: Element::EnumConstValue(type_name_index, const_value_index),
+                    value: Element::EnumConstValue {
+                        type_name_index,
+                        const_name_index,
+                    },
                 },
             ))
         }
@@ -686,7 +703,9 @@ fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
                 input,
                 (
                     target_type,
-                    TargetInfo::TypeParameterTarget(type_parameter_index),
+                    TargetInfo::TypeParameterTarget {
+                        type_parameter_index,
+                    },
                 ),
             ))
         }
@@ -694,7 +713,7 @@ fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
             let (input, supertype_index) = be_u16(input)?;
             Ok((
                 input,
-                (target_type, TargetInfo::SupertypeTarget(supertype_index)),
+                (target_type, TargetInfo::SupertypeTarget { supertype_index }),
             ))
         }
         0x11 | 0x12 => {
@@ -718,7 +737,9 @@ fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
                 input,
                 (
                     target_type,
-                    TargetInfo::FormalParameterTarget(formal_parameter_index),
+                    TargetInfo::FormalParameterTarget {
+                        formal_parameter_index,
+                    },
                 ),
             ))
         }
@@ -726,7 +747,7 @@ fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
             let (input, throws_type_index) = be_u16(input)?;
             Ok((
                 input,
-                (target_type, TargetInfo::ThrowTarget(throws_type_index)),
+                (target_type, TargetInfo::ThrowTarget { throws_type_index }),
             ))
         }
         0x40 | 0x41 => {
@@ -737,12 +758,17 @@ fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
             let (input, exception_table_index) = be_u16(input)?;
             Ok((
                 input,
-                (target_type, TargetInfo::CatchTarget(exception_table_index)),
+                (
+                    target_type,
+                    TargetInfo::CatchTarget {
+                        exception_table_index,
+                    },
+                ),
             ))
         }
         0x43 | 0x44 | 0x45 | 0x46 => {
             let (input, offset) = be_u16(input)?;
-            Ok((input, (target_type, TargetInfo::OffsetTarget(offset))))
+            Ok((input, (target_type, TargetInfo::OffsetTarget { offset })))
         }
         0x47 | 0x48 | 0x49 | 0x4A | 0x4B => {
             let (input, offset) = be_u16(input)?;
@@ -765,8 +791,22 @@ fn target_info(input: &[u8]) -> Res<&[u8], (u8, TargetInfo)> {
 }
 
 fn type_path(input: &[u8]) -> Res<&[u8], TypePath> {
-    context("type path", length_count(be_u8, pair(be_u8, be_u8)))(input)
+    context("type path", length_count(be_u8, type_path_pair))(input)
         .map(|(input, path)| (input, TypePath { path }))
+}
+
+fn type_path_pair(input: &[u8]) -> Res<&[u8], TypePathPair> {
+    context("type path pair", pair(be_u8, be_u8))(input).map(
+        |(input, (type_path_kind, type_argument_index))| {
+            (
+                input,
+                TypePathPair {
+                    type_path_kind,
+                    type_argument_index,
+                },
+            )
+        },
+    )
 }
 
 fn local_var(input: &[u8]) -> Res<&[u8], LocalVar> {

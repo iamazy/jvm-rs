@@ -281,9 +281,13 @@ pub struct LocalVariableType {
 #[derive(Debug, Clone)]
 pub struct Annotation {
     pub type_index: u16,
-    /// 0. element_name_index
-    /// 1. value
-    pub element_value_pairs: Vec<(u16, ElementValue)>,
+    pub element_value_pairs: Vec<ElementValuePair>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ElementValuePair {
+    pub element_name_index: u16,
+    pub value: ElementValue,
 }
 
 #[derive(Debug, Clone)]
@@ -295,9 +299,10 @@ pub struct ElementValue {
 #[derive(Debug, Clone)]
 pub enum Element {
     ConstValueIndex(u16),
-    /// 0. type_name_index
-    /// 1. const_name_index
-    EnumConstValue(u16, u16),
+    EnumConstValue {
+        type_name_index: u16,
+        const_name_index: u16,
+    },
     ClassInfoIndex(u16),
     AnnotationValue(Annotation),
     ArrayValue(Vec<ElementValue>),
@@ -319,24 +324,30 @@ pub struct TypeAnnotation {
 
 #[derive(Debug, Clone)]
 pub enum TargetInfo {
-    /// type_parameter_index
-    TypeParameterTarget(u8),
-    /// supertype_index
-    SupertypeTarget(u16),
+    TypeParameterTarget {
+        type_parameter_index: u8,
+    },
+    SupertypeTarget {
+        supertype_index: u16,
+    },
     TypeParameterBoundTarget {
         type_parameter_index: u8,
         bound_index: u8,
     },
     EmptyTarget,
-    /// formal_parameter_index
-    FormalParameterTarget(u8),
-    /// throws_type_index
-    ThrowTarget(u16),
+    FormalParameterTarget {
+        formal_parameter_index: u8,
+    },
+    ThrowTarget {
+        throws_type_index: u16,
+    },
     LocalVarTarget(Vec<LocalVar>),
-    /// exception_table_index
-    CatchTarget(u16),
-    /// offset
-    OffsetTarget(u16),
+    CatchTarget {
+        exception_table_index: u16,
+    },
+    OffsetTarget {
+        offset: u16,
+    },
     TypeArgumentTarget {
         offset: u16,
         type_argument_index: u8,
@@ -345,9 +356,13 @@ pub enum TargetInfo {
 
 #[derive(Debug, Clone)]
 pub struct TypePath {
-    /// 0. type_path_kind
-    /// 1. type_argument_index
-    pub path: Vec<(u8, u8)>,
+    pub path: Vec<TypePathPair>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TypePathPair {
+    pub type_path_kind: u8,
+    pub type_argument_index: u8,
 }
 
 #[derive(Debug, Clone)]
