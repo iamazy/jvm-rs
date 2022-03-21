@@ -28,7 +28,7 @@ mod method;
 
 const MAGIC: &[u8] = b"\xCA\xFE\xBA\xBE";
 
-type ConstantPoolRef<'a> = Rc<Vec<Constant<'a>>>;
+pub type ConstantPoolRef<'a> = Rc<Vec<Constant<'a>>>;
 
 type IResult<I, O, E = (I, ErrorKind)> = Result<(I, O), NomErr<E>>;
 type Res<T, U> = IResult<T, U, VerboseError<T>>;

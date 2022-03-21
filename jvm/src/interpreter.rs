@@ -24,7 +24,6 @@ fn loop_interpret<T: AsRef<[u8]>>(thread: Arc<RefCell<Thread>>, cursor: &mut Cur
         thread.borrow_mut().set_pc(pc);
         cursor.set_position(pc as u64);
         let opcode = cursor.get_u8();
-        println!("{:?}", opcode);
         let mut inst = new_inst(opcode);
         inst.fetch_operands(cursor);
         frame.set_next_pc(cursor.position() as isize);

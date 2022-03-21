@@ -2,11 +2,11 @@ use std::cell::RefCell;
 use std::ptr;
 use std::sync::Arc;
 
-mod object;
+mod heap;
 mod thread;
 
-pub use crate::rtda::object::Object;
 pub use crate::rtda::thread::Thread;
+pub use heap::Object;
 
 #[derive(Debug)]
 pub struct Stack {
@@ -278,7 +278,7 @@ impl OperandStack {
 
 #[cfg(test)]
 mod tests {
-    use crate::rtda::object::Object;
+    use crate::rtda::heap::Object;
     use crate::rtda::{Frame, LocalVars, OperandStack, Slot, Stack, Thread};
     use std::cell::RefCell;
     use std::ptr;
