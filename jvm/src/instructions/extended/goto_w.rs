@@ -3,6 +3,7 @@ use crate::rtda::Frame;
 use bytes::Buf;
 use std::io::Cursor;
 
+#[derive(Default, Debug)]
 #[allow(non_camel_case_types)]
 pub struct GOTO_W {
     offset: i32,

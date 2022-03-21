@@ -1,4 +1,4 @@
-use crate::classpath::entry::{new_entry, CompositeEntry, Entry, CLASS_EXTENSION};
+pub use crate::classpath::entry::{new_entry, CompositeEntry, Entry, CLASS_EXTENSION};
 use std::path::{Path, PathBuf};
 
 mod entry;

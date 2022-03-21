@@ -58,9 +58,9 @@ impl Stack {
 pub struct Frame {
     lower: Option<Box<Frame>>,
     local_vars: LocalVars,
-    operand_stack: Option<OperandStack>,
+    operand_stack: OperandStack,
     thread: Arc<RefCell<Thread>>,
-    next_pc: usize,
+    next_pc: isize,
 }
 
 impl Frame {
@@ -68,25 +68,33 @@ impl Frame {
         Frame {
             lower: None,
             local_vars: LocalVars::new(max_locals),
-            operand_stack: Some(OperandStack::new(max_stack)),
+            operand_stack: OperandStack::new(max_stack),
             thread,
             next_pc: 0,
         }
     }
 
-    pub fn operand_stack(&mut self) -> &mut OperandStack {
-        self.operand_stack.as_mut().unwrap()
+    pub fn operand_stack_mut(&mut self) -> &mut OperandStack {
+        &mut self.operand_stack
     }
 
-    pub fn local_vars(&mut self) -> &mut LocalVars {
+    pub fn operand_stack(&self) -> &OperandStack {
+        &self.operand_stack
+    }
+
+    pub fn local_vars(&self) -> &LocalVars {
+        &self.local_vars
+    }
+
+    pub fn local_vars_mut(&mut self) -> &mut LocalVars {
         &mut self.local_vars
     }
 
-    pub fn next_pc(&mut self) -> usize {
+    pub fn next_pc(&mut self) -> isize {
         self.next_pc
     }
 
-    pub fn set_next_pc(&mut self, next_pc: usize) {
+    pub fn set_next_pc(&mut self, next_pc: isize) {
         self.next_pc = next_pc;
     }
 
@@ -96,7 +104,8 @@ impl Frame {
 
     pub fn branch(&mut self, offset: i32) {
         let pc = self.thread.borrow_mut().pc();
-        self.set_next_pc(pc + offset as usize);
+        let next_pc = pc + offset as isize;
+        self.set_next_pc(next_pc);
     }
 }
 
@@ -181,7 +190,7 @@ impl LocalVars {
 
 #[derive(Debug)]
 pub struct OperandStack {
-    size: u32,
+    size: usize,
     slots: Vec<Slot>,
 }
 
@@ -290,7 +299,7 @@ mod tests {
             let frame = Frame {
                 lower: None,
                 local_vars: LocalVars(local_vars),
-                operand_stack: None,
+                operand_stack: OperandStack::new(0),
                 thread: thread.clone(),
                 next_pc: 0,
             };

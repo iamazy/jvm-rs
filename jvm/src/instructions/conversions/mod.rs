@@ -6,28 +6,28 @@ use std::io::Cursor;
 macro_rules! register_conversion {
     ($(($inst:ident, $pop_fn:ident, $push_fn:ident, $typ:ty)),*) => {
         $(
-            #[derive(NoOperand)]
+            #[derive(NoOperand, Debug)]
             #[allow(non_camel_case_types)]
             pub struct $inst;
 
             impl InstructionExecutor for $inst {
                 fn execute(&self, frame: &mut Frame) {
-                    let val = frame.operand_stack().$pop_fn();
-                    frame.operand_stack().$push_fn(val as $typ);
+                    let val = frame.operand_stack_mut().$pop_fn();
+                    frame.operand_stack_mut().$push_fn(val as $typ);
                 }
             }
         )*
     };
     ($(($inst:ident, $pop_fn:ident, $push_fn:ident, $typ1:ty, $typ2:ty)),*) => {
         $(
-            #[derive(NoOperand)]
+            #[derive(NoOperand, Debug)]
             #[allow(non_camel_case_types)]
             pub struct $inst;
 
             impl InstructionExecutor for $inst {
                 fn execute(&self, frame: &mut Frame) {
-                    let val = frame.operand_stack().$pop_fn() as $typ1;
-                    frame.operand_stack().$push_fn(val as $typ2);
+                    let val = frame.operand_stack_mut().$pop_fn() as $typ1;
+                    frame.operand_stack_mut().$push_fn(val as $typ2);
                 }
             }
         )*

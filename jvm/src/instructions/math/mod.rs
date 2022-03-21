@@ -6,15 +6,16 @@ use std::io::Cursor;
 macro_rules! register_math {
     ($(($inst:ident, $pop_fn:ident, $push_fn:ident, $sign:tt)),*) => {
         $(
-            #[derive(NoOperand)]
+            #[derive(NoOperand, Debug)]
             #[allow(non_camel_case_types)]
             pub struct $inst;
 
             impl InstructionExecutor for $inst {
                 fn execute(&self, frame: &mut Frame) {
-                    let val1 = frame.operand_stack().$pop_fn();
-                    let val2 = frame.operand_stack().$pop_fn();
-                    frame.operand_stack().$push_fn(val1 $sign val2);
+                    let val1 = frame.operand_stack_mut().$pop_fn();
+                    let val2 = frame.operand_stack_mut().$pop_fn();
+                    let result = val1 $sign val2;
+                    frame.operand_stack_mut().$push_fn(result);
                 }
             }
         )*
@@ -57,8 +58,6 @@ register_math! {
     // xor
     (LXOR, pop_long, push_long, ^),
     (IXOR, pop_int, push_int, ^)
-
-
 }
 
 pub(crate) mod iinc;

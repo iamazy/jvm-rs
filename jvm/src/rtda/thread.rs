@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Thread {
-    pc: usize,
+    pc: isize,
     stack: Option<Stack>,
 }
 
@@ -29,11 +29,11 @@ impl Thread {
         self.stack.as_ref().and_then(Stack::peek)
     }
 
-    pub fn pc(&self) -> usize {
+    pub fn pc(&self) -> isize {
         self.pc
     }
 
-    pub fn set_pc(&mut self, pc: usize) {
+    pub fn set_pc(&mut self, pc: isize) {
         self.pc = pc;
     }
 

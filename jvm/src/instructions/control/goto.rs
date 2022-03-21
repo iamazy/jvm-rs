@@ -4,7 +4,7 @@ use bytes::Buf;
 use jvm_macros::Branch;
 use std::io::Cursor;
 
-#[derive(Branch)]
+#[derive(Branch, Default, Debug)]
 #[allow(non_camel_case_types)]
 pub struct GOTO {
     offset: i32,

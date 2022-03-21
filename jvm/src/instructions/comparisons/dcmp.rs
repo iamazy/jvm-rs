@@ -4,7 +4,7 @@ use crate::rtda::Frame;
 use jvm_macros::NoOperand;
 use std::io::Cursor;
 
-#[derive(NoOperand)]
+#[derive(NoOperand, Debug)]
 #[allow(non_camel_case_types)]
 pub struct DCMPG;
 
@@ -14,7 +14,7 @@ impl InstructionExecutor for DCMPG {
     }
 }
 
-#[derive(NoOperand)]
+#[derive(NoOperand, Debug)]
 #[allow(non_camel_case_types)]
 pub struct DCMPL;
 

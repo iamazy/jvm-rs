@@ -8,45 +8,45 @@ macro_rules! register_load_fn {
     ($(($fn_name:ident, $get_fn:ident, $push_fn:ident)),*) => {
         $(
             fn $fn_name(frame: &mut Frame, index: usize) {
-                let val = frame.local_vars().$get_fn(index);
-                frame.operand_stack().$push_fn(val);
+                let val = frame.local_vars_mut().$get_fn(index);
+                frame.operand_stack_mut().$push_fn(val);
             }
         )*
     };
 }
 
-macro_rules! register_load {
-    ($(($load:ident, $load_fn:ident, $val:literal)),*) => {
+macro_rules! register_load_store {
+    ($(($name:ident, $load_store_fn:ident, $val:literal)),*) => {
         $(
-            #[derive(NoOperand)]
+            #[derive(NoOperand, Debug)]
             #[allow(non_camel_case_types)]
-            pub struct $load;
+            pub struct $name;
 
-            impl InstructionExecutor for $load {
+            impl InstructionExecutor for $name {
                 fn execute(&self, frame: &mut Frame) {
-                    $load_fn(frame, $val);
+                    $load_store_fn(frame, $val);
                 }
             }
         )*
     };
-    ($(($load:ident, $load_fn:ident)),*) => {
+    ($(($name:ident, $load_store_fn:ident)),*) => {
         $(
-            #[derive(Index8)]
+            #[derive(Index8, Default, Debug)]
             #[allow(non_camel_case_types)]
-            pub struct $load {
-                index: u32,
+            pub struct $name {
+                index: usize,
             }
 
-            impl $load {
+            impl $name {
                 #[inline]
-                pub const fn new(index: u32) -> Self {
+                pub const fn new(index: usize) -> Self {
                     Self { index }
                 }
             }
 
-            impl InstructionExecutor for $load {
+            impl InstructionExecutor for $name {
                 fn execute(&self, frame: &mut Frame) {
-                    $load_fn(frame, self.index as usize);
+                    $load_store_fn(frame, self.index);
                 }
             }
         )*
@@ -61,7 +61,7 @@ register_load_fn! {
     (lload, get_long, push_long)
 }
 
-register_load! {
+register_load_store! {
     (ALOAD, aload),
     (DLOAD, dload),
     (FLOAD, fload),
@@ -69,7 +69,7 @@ register_load! {
     (LLOAD, lload)
 }
 
-register_load! {
+register_load_store! {
     (ALOAD_0, aload, 0),
     (ALOAD_1, aload, 1),
     (ALOAD_2, aload, 2),

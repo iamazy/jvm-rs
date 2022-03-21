@@ -6,7 +6,7 @@ use std::io::Cursor;
 pub(crate) mod r#const;
 pub(crate) mod ipush;
 
-#[derive(NoOperand)]
+#[derive(NoOperand, Debug)]
 pub struct NOP;
 
 impl InstructionExecutor for NOP {

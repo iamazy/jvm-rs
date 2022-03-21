@@ -7,13 +7,13 @@ use std::ptr;
 macro_rules! register_const {
     ($(($inst:ident, $func:ident($expr:expr))),*) => {
         $(
-            #[derive(NoOperand)]
+            #[derive(NoOperand, Debug)]
             #[allow(non_camel_case_types)]
             pub struct $inst;
 
             impl InstructionExecutor for $inst {
                 fn execute(&self, frame: &mut Frame) {
-                   frame.operand_stack().$func($expr);
+                   frame.operand_stack_mut().$func($expr);
                 }
             }
         )*

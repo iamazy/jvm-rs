@@ -57,7 +57,7 @@ fn impl_index8(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream
     let ret = quote! {
         impl<T: AsRef<[u8]>> InstructionReader<T> for #struct_ident {
             fn fetch_operands(&mut self, reader: &mut Cursor<T>) {
-                self.index = reader.get_u8() as u32;
+                self.index = reader.get_u8() as usize;
             }
         }
     };

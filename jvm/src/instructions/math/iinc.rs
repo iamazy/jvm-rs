@@ -2,6 +2,7 @@ use crate::instructions::{InstructionExecutor, InstructionReader};
 use bytes::Buf;
 use std::io::Cursor;
 
+#[derive(Default, Debug)]
 pub struct IINC {
     pub index: usize,
     pub r#const: i32,
@@ -23,7 +24,9 @@ impl<T: AsRef<[u8]>> InstructionReader<T> for IINC {
 
 impl InstructionExecutor for IINC {
     fn execute(&self, frame: &mut crate::rtda::Frame) {
-        let val = frame.local_vars().get_int(self.index);
-        frame.local_vars().set_int(self.index, val + self.r#const);
+        let val = frame.local_vars_mut().get_int(self.index);
+        frame
+            .local_vars_mut()
+            .set_int(self.index, val + self.r#const);
     }
 }

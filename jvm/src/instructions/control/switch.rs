@@ -3,6 +3,7 @@ use crate::rtda::Frame;
 use bytes::Buf;
 use std::io::Cursor;
 
+#[derive(Default, Debug)]
 #[allow(non_camel_case_types)]
 pub struct TABLE_SWITCH {
     default_offset: i32,
@@ -30,7 +31,7 @@ impl<T: AsRef<[u8]>> InstructionReader<T> for TABLE_SWITCH {
 
 impl InstructionExecutor for TABLE_SWITCH {
     fn execute(&self, frame: &mut Frame) {
-        let index = frame.operand_stack().pop_int();
+        let index = frame.operand_stack_mut().pop_int();
         let offset = if index >= self.low && index <= self.high {
             self.jump_offsets[(index - self.low) as usize]
         } else {
@@ -40,6 +41,7 @@ impl InstructionExecutor for TABLE_SWITCH {
     }
 }
 
+#[derive(Default, Debug)]
 #[allow(non_camel_case_types)]
 pub struct LOOKUP_SWITCH {
     default_offset: i32,
@@ -68,7 +70,7 @@ where
 
 impl InstructionExecutor for LOOKUP_SWITCH {
     fn execute(&self, frame: &mut Frame) {
-        let key = frame.operand_stack().pop_int();
+        let key = frame.operand_stack_mut().pop_int();
         let total_size = (self.pairs_size * 2) as usize;
         for i in (0..total_size).step_by(2) {
             if self.match_offsets[i] == key {

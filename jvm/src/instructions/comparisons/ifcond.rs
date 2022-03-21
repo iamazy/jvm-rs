@@ -7,7 +7,7 @@ use std::io::Cursor;
 macro_rules! register_ifcond {
     ($(($inst:ident, $sign:tt)),*) => {
         $(
-            #[derive(Branch)]
+            #[derive(Branch, Default, Debug)]
             #[allow(non_camel_case_types)]
             pub struct $inst {
                 offset: i32,
@@ -15,7 +15,7 @@ macro_rules! register_ifcond {
 
             impl InstructionExecutor for $inst {
                 fn execute(&self, frame: &mut Frame) {
-                    let val = frame.operand_stack().pop_int();
+                    let val = frame.operand_stack_mut().pop_int();
                     if val $sign 0 {
                         frame.branch(self.offset);
                     }

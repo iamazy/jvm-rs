@@ -7,7 +7,7 @@ use std::io::Cursor;
 macro_rules! register_if_cmp {
     ($(($inst:ident, $func:ident, $op:tt)),*) => {
         $(
-            #[derive(Branch)]
+            #[derive(Branch, Default, Debug)]
             #[allow(non_camel_case_types)]
             pub struct $inst {
                 offset: i32,
@@ -15,8 +15,8 @@ macro_rules! register_if_cmp {
 
             impl InstructionExecutor for $inst {
                 fn execute(&self, frame: &mut Frame) {
-                    let val2 = frame.operand_stack().$func();
-                    let val1 = frame.operand_stack().$func();
+                    let val2 = frame.operand_stack_mut().$func();
+                    let val1 = frame.operand_stack_mut().$func();
                     if val1 $op val2 {
                         frame.branch(self.offset)
                     }
@@ -30,8 +30,8 @@ macro_rules! fn_cmp {
     ($(($name:ident, $func:ident)),*) => {
         $(
             fn $name(frame: &mut Frame, flag: bool) {
-                let v2 = frame.operand_stack().$func();
-                let v1 = frame.operand_stack().$func();
+                let v2 = frame.operand_stack_mut().$func();
+                let v1 = frame.operand_stack_mut().$func();
                 let value = if v1 > v2 {
                     1
                 } else if v1 == v2 {
@@ -43,7 +43,7 @@ macro_rules! fn_cmp {
                 } else {
                     -1
                 };
-                frame.operand_stack().push_int(value);
+                frame.operand_stack_mut().push_int(value);
             }
         )*
     }
