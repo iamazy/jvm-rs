@@ -1,3 +1,4 @@
+#![allow(clippy::upper_case_acronyms)]
 use crate::rtda::Frame;
 use std::fmt::{Debug, Formatter};
 use std::io::Cursor;

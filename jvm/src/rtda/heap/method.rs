@@ -1,5 +1,5 @@
 use crate::rtda::heap::class::Class;
-use classfile::get_utf8;
+use classfile::{get_utf8, MethodInfo};
 
 #[derive(Debug)]
 pub struct Method<'a> {
@@ -13,7 +13,7 @@ pub struct Method<'a> {
 }
 
 impl<'a> Method<'a> {
-    pub fn new(class: &'a Class<'a>, method_info: &'a classfile::MethodInfo) -> Self {
+    pub fn new(class: &'a Class, method_info: &'a classfile::MethodInfo) -> Self {
         let mut method = Method {
             access_flags: method_info.access_flags,
             name: get_utf8(class.constant_pool.clone(), method_info.name_index as usize),
@@ -33,4 +33,11 @@ impl<'a> Method<'a> {
         }
         method
     }
+}
+
+pub fn new_methods<'a>(class: &'a Class, method_infos: Vec<&'a MethodInfo>) -> Vec<Method<'a>> {
+    method_infos
+        .into_iter()
+        .map(|method_info| Method::new(class, method_info))
+        .collect()
 }
