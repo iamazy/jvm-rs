@@ -4,6 +4,7 @@ use crate::rtda::heap::method::Method;
 use crate::rtda::Slot;
 use classfile::{get_utf8, ClassFile};
 use std::sync::Arc;
+use crate::rtda::heap::access_flags::AccessFlag;
 
 #[derive(Debug)]
 pub struct Class<'a> {
@@ -44,4 +45,39 @@ impl<'a> Class<'a> {
     //         .map(|method| method.clone())
     //         .collect();
     // }
+
+    // access_flags
+    pub fn  is_publish(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_PUBLIC.bits()  != 0
+    }
+
+    pub fn  is_final(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_FINAL.bits()  != 0
+    }
+
+    pub fn  is_super(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_SUPER.bits()  != 0
+    }
+
+    pub fn  is_interface(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_INTERFACE.bits()  != 0
+    }
+
+    pub fn  is_abstract(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_ABSTRACT.bits()  != 0
+    }
+
+    pub fn  is_synthetic(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_SYNTHETIC.bits()  != 0
+    }
+
+    pub fn  is_annotation(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_ANNOTATION.bits()  != 0
+    }
+
+    pub fn  is_enum(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_ENUM.bits()  != 0
+    }
+
+
 }

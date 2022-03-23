@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 
 bitflags! {
-    struct AccessFlag: u16 {
+    pub struct AccessFlag: u16 {
         const ACC_PUBLIC = 0x0001;
         const ACC_PRIVATE = 0x0002;
         const ACC_PROTECTED = 0x0004;
