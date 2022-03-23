@@ -1,16 +1,19 @@
+use crate::rtda::heap::constant_pool::ConstantPool;
+use crate::rtda::heap::field::Field;
+use crate::rtda::heap::method::Method;
 use crate::rtda::Slot;
-use classfile::{get_utf8, ClassFile, ConstantPoolRef, FieldInfo, MethodInfo};
+use classfile::{get_utf8, ClassFile};
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Class<'a> {
     pub access_flags: u16,
-    pub name: &'a [u8],
-    pub super_class_name: &'a [u8],
-    pub interface_names: Vec<&'a [u8]>,
-    pub constant_pool: ConstantPoolRef<'a>,
-    pub fields: Vec<&'a FieldInfo<'a>>,
-    pub methods: Vec<&'a MethodInfo<'a>>,
+    pub name: &'a str,
+    pub super_class_name: &'a str,
+    pub interface_names: Vec<&'a str>,
+    pub constant_pool: ConstantPool<'a>,
+    pub fields: Vec<&'a Field<'a>>,
+    pub methods: Vec<&'a Method<'a>>,
     // pub loader: Box<dyn ClassLoader>,
     pub super_class: Option<Arc<Class<'a>>>,
     pub interfaces: Vec<Arc<Class<'a>>>,
