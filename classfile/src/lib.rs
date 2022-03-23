@@ -17,7 +17,7 @@ use nom::multi::length_count;
 use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u32, be_u8};
 use nom::sequence::{pair, tuple};
 use nom::Err as NomErr;
-use std::rc::Rc;
+use std::sync::Arc;
 
 mod attribute;
 mod class_file;
@@ -28,7 +28,7 @@ mod method;
 
 const MAGIC: &[u8] = b"\xCA\xFE\xBA\xBE";
 
-pub type ConstantPoolRef<'a> = Rc<Vec<Constant<'a>>>;
+pub type ConstantPoolRef<'a> = Arc<Vec<Constant<'a>>>;
 
 type IResult<I, O, E = (I, ErrorKind)> = Result<(I, O), NomErr<E>>;
 type Res<T, U> = IResult<T, U, VerboseError<T>>;
@@ -41,6 +41,11 @@ pub fn get_utf8(constant_pool: ConstantPoolRef, index: usize) -> &[u8] {
         }
         _ => unreachable!("constant pool index mismatch"),
     }
+}
+
+pub fn get_str(constant_pool: ConstantPoolRef, index: usize) -> &str {
+    let utf8 = get_utf8(constant_pool.clone(), index);
+    std::str::from_utf8(utf8).unwrap()
 }
 
 pub fn parse(input: &[u8]) -> Res<&[u8], ClassFile> {
@@ -75,7 +80,7 @@ fn class_file(input: &[u8]) -> Res<&[u8], ClassFile> {
                 interfaces,
             ),
         )| {
-            let constant_pool = Rc::new(constant_pool);
+            let constant_pool = Arc::new(constant_pool);
             let (input, fields) = length_count(be_u16, field_info(constant_pool.clone()))(input)?;
             let (input, methods) = length_count(be_u16, method_info(constant_pool.clone()))(input)?;
             let (input, attributes) =
