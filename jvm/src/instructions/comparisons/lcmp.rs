@@ -1,7 +1,7 @@
-use std::cmp::Ordering;
 use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::Frame;
 use jvm_macros::NoOperand;
+use std::cmp::Ordering;
 use std::io::Cursor;
 
 #[derive(NoOperand, Debug)]
@@ -15,7 +15,7 @@ impl InstructionExecutor for LCMP {
         match val1.cmp(&val2) {
             Ordering::Greater => frame.operand_stack_mut().push_int(1),
             Ordering::Equal => frame.operand_stack_mut().push_int(0),
-            _ => frame.operand_stack_mut().push_int(-1)
+            _ => frame.operand_stack_mut().push_int(-1),
         }
     }
 }
