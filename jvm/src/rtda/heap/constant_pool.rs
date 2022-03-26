@@ -2,54 +2,35 @@ use crate::rtda::heap::class::Class;
 use crate::rtda::heap::field::Field;
 use crate::rtda::heap::method::Method;
 use classfile::{get_str, ConstantPoolRef};
+use std::ptr::NonNull;
 
 #[derive(Debug, Clone)]
-pub enum Constant<'a> {
+pub enum Constant {
     Placeholder,
     Integer(i32),
     Float(f32),
     Long(i64),
     Double(f64),
-    String(&'a str),
-    Utf8(&'a [u8]),
-    Class {
-        class: &'a Class<'a>,
-    },
-    FieldRef {
-        field: &'a Field<'a>,
-        const_value_index: u16,
-        slot_id: u16,
-    },
-    MethodRef {
-        method: &'a Method<'a>,
-    },
-    InterfaceMethodRef {
-        method: &'a Method<'a>,
-    },
-    NameAndType {
-        name: &'a str,
-        descriptor: &'a str,
-    },
+    String(String),
+    Utf8(Vec<u8>),
+    Class { class: NonNull<Class> },
+    FieldRef { field: NonNull<Field> },
+    MethodRef { method: NonNull<Method> },
+    InterfaceMethodRef { method: NonNull<Method> },
+    NameAndType { name: String, descriptor: String },
     MethodHandle,
-    MethodType {
-        descriptor: &'a str,
-    },
-    Module {
-        name: &'a str,
-    },
-    Package {
-        name: &'a str,
-    },
+    MethodType { descriptor: String },
+    Module { name: String },
+    Package { name: String },
 }
 
 #[derive(Debug, Clone)]
-pub struct ConstantPool<'a> {
-    consts: Vec<Constant<'a>>,
-    class: &'a Class<'a>,
+pub struct ConstantPool {
+    consts: Vec<Constant>,
 }
 
-impl<'a, 'b: 'a> ConstantPool<'a> {
-    pub fn new(class: &'a Class, cp: ConstantPoolRef<'b>) -> ConstantPool<'a> {
+impl ConstantPool {
+    pub fn new(cp: ConstantPoolRef) -> ConstantPool {
         let mut consts = Vec::with_capacity(cp.len());
         for constant in cp.iter() {
             match constant {
@@ -69,27 +50,26 @@ impl<'a, 'b: 'a> ConstantPool<'a> {
                     consts.push(Constant::Double(*d));
                 }
                 classfile::Constant::String { string_index } => {
-                    consts.push(Constant::String(get_str(
-                        cp.clone(),
-                        *string_index as usize,
-                    )));
+                    consts.push(Constant::String(
+                        get_str(cp.clone(), *string_index as usize).to_string(),
+                    ));
                 }
                 classfile::Constant::Utf8(utf8) => {
-                    consts.push(Constant::Utf8(utf8));
+                    consts.push(Constant::Utf8(utf8.to_vec()));
                 }
                 classfile::Constant::MethodType { descriptor_index } => {
                     consts.push(Constant::MethodType {
-                        descriptor: get_str(cp.clone(), *descriptor_index as usize),
+                        descriptor: get_str(cp.clone(), *descriptor_index as usize).to_string(),
                     });
                 }
                 classfile::Constant::Module { name_index } => {
                     consts.push(Constant::Module {
-                        name: get_str(cp.clone(), *name_index as usize),
+                        name: get_str(cp.clone(), *name_index as usize).to_string(),
                     });
                 }
                 classfile::Constant::Package { name_index } => {
                     consts.push(Constant::Package {
-                        name: get_str(cp.clone(), *name_index as usize),
+                        name: get_str(cp.clone(), *name_index as usize).to_string(),
                     });
                 }
                 _ => {
@@ -97,24 +77,27 @@ impl<'a, 'b: 'a> ConstantPool<'a> {
                 }
             }
         }
-        ConstantPool { consts, class }
+        ConstantPool { consts }
     }
 
-    pub fn get(&'a self, index: usize) -> &'a Constant<'a> {
+    pub fn get(&self, index: usize) -> &Constant {
         &self.consts[index]
     }
 
-    pub fn get_utf8(&'a self, index: usize) -> &'a [u8] {
+    pub fn get_utf8(&self, index: usize) -> &Vec<u8> {
         match self.get(index as usize) {
             Constant::Utf8(utf8) => utf8,
             _ => panic!("java.lang.ClassFormatError"),
         }
     }
 
-    pub fn get_str(&'a self, index: usize) -> &'a str {
+    pub fn get_str(&self, index: usize) -> String {
         match self.get(index as usize) {
-            Constant::Utf8(utf8) => std::str::from_utf8(utf8).unwrap(),
-            Constant::String(string) => string,
+            Constant::Utf8(utf8) => match String::from_utf8(utf8.clone()) {
+                Ok(str) => str,
+                _ => panic!("java.lang.ClassFormatError"),
+            },
+            Constant::String(string) => string.to_string(),
             _ => panic!("java.lang.ClassFormatError"),
         }
     }
