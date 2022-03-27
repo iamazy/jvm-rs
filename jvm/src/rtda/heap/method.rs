@@ -1,46 +1,117 @@
+use crate::rtda::heap::access_flags::AccessFlag;
 use crate::rtda::heap::class::Class;
 use classfile::MethodInfo;
+use std::marker::{PhantomData, PhantomPinned};
 use std::ptr::NonNull;
 
 #[derive(Debug)]
 pub struct Method {
     pub access_flags: u16,
-    pub name: String,
-    pub descriptor: String,
+    pub name_index: u16,
+    pub descriptor_index: u16,
     pub class: NonNull<Class>,
-    pub max_stack: Option<usize>,
-    pub max_locals: Option<usize>,
-    pub code: Option<Vec<u8>>,
+    max_stack: usize,
+    max_locals: usize,
+    code: Option<Vec<u8>>,
+    marker: PhantomData<Box<Class>>,
+    _pin: PhantomPinned,
 }
 
 impl Method {
-    pub fn new(class: NonNull<Class>, method_info: &classfile::MethodInfo) -> Self {
-        let class_ptr = unsafe { Box::from_raw(class.as_ptr()) };
-        let name = class_ptr
-            .constant_pool
-            .get_str(method_info.name_index as usize);
-        let descriptor = class_ptr
-            .constant_pool
-            .get_str(method_info.descriptor_index as usize);
+    pub fn new(class: &mut Class, method_info: &classfile::MethodInfo) -> Self {
         let mut method = Method {
             access_flags: method_info.access_flags,
-            name,
-            descriptor,
-            class,
-            max_stack: None,
-            max_locals: None,
+            name_index: method_info.name_index,
+            descriptor_index: method_info.descriptor_index,
+            class: NonNull::from(class),
+            max_stack: 0,
+            max_locals: 0,
             code: None,
+            marker: PhantomData,
+            _pin: PhantomPinned,
         };
         if let Some(code) = method_info.code_attribute() {
-            method.max_stack = Some(code.max_stack as usize);
-            method.max_locals = Some(code.max_locals as usize);
+            method.max_stack = code.max_stack as usize;
+            method.max_locals = code.max_locals as usize;
             method.code = Some(code.code.to_vec());
         }
         method
     }
+
+    pub fn name(&self) -> &String {
+        unsafe {
+            self.class
+                .as_ref()
+                .constant_pool
+                .as_ref()
+                .get_str(self.name_index as usize)
+        }
+    }
+
+    pub fn descriptor(&self) -> &String {
+        unsafe {
+            self.class
+                .as_ref()
+                .constant_pool
+                .as_ref()
+                .get_str(self.descriptor_index as usize)
+        }
+    }
+
+    pub fn is_public(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_PUBLIC.bits() != 0
+    }
+
+    pub fn is_private(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_PRIVATE.bits() != 0
+    }
+
+    pub fn is_static(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_STATIC.bits() != 0
+    }
+
+    pub fn is_final(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_FINAL.bits() != 0
+    }
+
+    pub fn is_synchronized(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_SYNCHRONIZED.bits() != 0
+    }
+
+    pub fn is_bridge(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_BRIDGE.bits() != 0
+    }
+
+    pub fn is_varargs(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_VARARGS.bits() != 0
+    }
+
+    pub fn is_native(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_NATIVE.bits() != 0
+    }
+
+    pub fn is_abstract(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_ABSTRACT.bits() != 0
+    }
+
+    pub fn is_strict(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_STRICT.bits() != 0
+    }
+
+    pub fn max_locals(&self) -> usize {
+        self.max_locals
+    }
+
+    pub fn max_stack(&self) -> usize {
+        self.max_stack
+    }
+
+    pub fn code(&self) -> Option<&[u8]> {
+        self.code.as_deref()
+    }
 }
 
-pub fn new_methods(class: NonNull<Class>, method_infos: &Vec<MethodInfo>) -> Vec<Method> {
+pub fn new_methods(class: &mut Class, method_infos: &[MethodInfo]) -> Vec<Method> {
     method_infos
         .iter()
         .map(|method_info| Method::new(class, method_info))

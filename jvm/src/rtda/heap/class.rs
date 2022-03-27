@@ -1,68 +1,66 @@
 use crate::rtda::heap::access_flags::AccessFlag;
+use crate::rtda::heap::class_loader::ClassLoader;
 use crate::rtda::heap::constant_pool::ConstantPool;
 use crate::rtda::heap::field::{new_fields, Field};
 use crate::rtda::heap::method::{new_methods, Method};
 use crate::rtda::Slot;
-use classfile::{get_str, ClassFile};
+use classfile::ClassFile;
+use std::marker::PhantomPinned;
 use std::ptr::NonNull;
 
 #[derive(Debug)]
 pub struct Class {
     pub access_flags: u16,
-    pub name: String,
-    pub super_class_name: String,
-    pub interface_names: Vec<String>,
-    pub constant_pool: ConstantPool,
+    // index of Constant::Class in constant pool
+    pub index: u16,
+    pub super_class_index: u16,
+    pub interface_names: Vec<u16>,
+    pub constant_pool: NonNull<ConstantPool>,
     pub fields: Vec<Field>,
     pub methods: Vec<Method>,
-    // pub loader: Box<dyn ClassLoader>,
+    pub loader: NonNull<ClassLoader>,
     pub super_class: Option<NonNull<Class>>,
     pub interfaces: Vec<NonNull<Class>>,
     pub instance_slot_count: usize,
     pub static_slot_count: usize,
     pub static_vars: Vec<Slot>,
+    _pin: PhantomPinned,
 }
 
 impl Class {
-    pub fn new(class_file: &ClassFile) -> NonNull<Class> {
+    pub fn new(class_file: &ClassFile) -> Class {
         let access_flags = class_file.access_flags;
-        let constant_pool = class_file.constant_pool.clone();
-        let name = get_str(constant_pool.clone(), class_file.this_class as usize).to_string();
-        let super_class_name =
-            get_str(constant_pool.clone(), class_file.super_class as usize).to_string();
-        let interface_names = class_file
-            .interfaces
-            .iter()
-            .map(|interface_index| {
-                get_str(constant_pool.clone(), *interface_index as usize).to_string()
-            })
-            .collect();
         let mut class = Self {
             access_flags,
-            name,
-            super_class_name,
-            interface_names,
-            constant_pool: ConstantPool::new(class_file.constant_pool.clone()),
-            fields: vec![],
-            methods: vec![],
+            index: class_file.this_class,
+            super_class_index: class_file.super_class,
+            interface_names: class_file.interfaces.clone(),
+            constant_pool: NonNull::dangling(),
+            loader: NonNull::dangling(),
+            fields: Vec::with_capacity(class_file.fields.len()),
+            methods: Vec::with_capacity(class_file.methods.len()),
             super_class: None,
-            interfaces: vec![],
+            interfaces: Vec::with_capacity(class_file.interfaces.len()),
             instance_slot_count: 0,
             static_slot_count: 0,
             static_vars: vec![],
+            _pin: PhantomPinned,
         };
-        let class = NonNull::from(&mut class);
-        let fields = new_fields(class, &class_file.fields);
+        // initialize constant pool
+        let mut constant_pool = ConstantPool::new(class_file.constant_pool.len());
+        constant_pool.fill(&mut class, class_file.constant_pool.clone());
+        class.constant_pool = Box::leak(Box::new(constant_pool)).into();
+
+        // initialize fields
+        let fields = new_fields(&mut class, &class_file.fields);
         for field in fields {
-            unsafe {
-                (*class.as_ptr()).fields.push(field);
-            }
+            class.fields.push(field);
         }
-        let methods = new_methods(class, &class_file.methods);
+
+        // initialize methods
+        let methods = new_methods(&mut class, &class_file.methods);
         for method in methods {
-            unsafe {
-                (*class.as_ptr()).methods.push(method);
-            }
+            class.methods.push(method);
         }
         class
     }
@@ -70,6 +68,14 @@ impl Class {
     // access_flags
     pub fn is_publish(&self) -> bool {
         self.access_flags & AccessFlag::ACC_PUBLIC.bits() != 0
+    }
+
+    pub fn is_private(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_PRIVATE.bits() != 0
+    }
+
+    pub fn is_protected(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_PROTECTED.bits() != 0
     }
 
     pub fn is_final(&self) -> bool {
@@ -98,5 +104,45 @@ impl Class {
 
     pub fn is_enum(&self) -> bool {
         self.access_flags & AccessFlag::ACC_ENUM.bits() != 0
+    }
+
+    pub fn name(&self) -> &String {
+        unsafe { self.constant_pool.as_ref().get_str(self.index as usize) }
+    }
+
+    pub fn super_class_name(&self) -> &String {
+        unsafe {
+            self.constant_pool
+                .as_ref()
+                .get_str(self.super_class_index as usize)
+        }
+    }
+
+    pub fn interface_names(&self) -> Vec<&String> {
+        unsafe {
+            self.interface_names
+                .iter()
+                .map(|&index| self.constant_pool.as_ref().get_str(index as usize))
+                .collect()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::classpath::{ClassPath, Entry};
+    use crate::rtda::heap::class::Class;
+
+    #[test]
+    fn test_read_class() {
+        let class_path = ClassPath::new("".to_string(), "../data/jvm8".to_string());
+        if let Ok(class_bytes) = class_path.read_class("User") {
+            if let Ok((_, ref class_file)) = classfile::parse(class_bytes.as_slice()) {
+                let class = Class::new(class_file);
+                assert_eq!(class.name(), "User");
+                assert_eq!(class.super_class_name(), "java/lang/Object");
+                assert_eq!(class.fields.len(), 3);
+            }
+        }
     }
 }
