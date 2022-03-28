@@ -20,6 +20,7 @@ jobs:
         run: |
           cd data/jvm8
           javac User.java
+          javac GaussTest.java
 
       - name: Cargo build and test
         run: |
