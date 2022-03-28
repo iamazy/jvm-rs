@@ -347,13 +347,13 @@ mod tests {
         local_var.set_double(7, std::f64::consts::E);
         let object = &mut Object {} as *mut Object;
         local_var.set_ref(9, object);
-        println!("{}", local_var.get_int(0));
-        println!("{}", local_var.get_int(1));
-        println!("{}", local_var.get_long(2));
-        println!("{}", local_var.get_long(4));
-        println!("{}", local_var.get_float(6));
-        println!("{}", local_var.get_double(7));
-        println!("{:?}", local_var.get_ref(9));
+        assert_eq!(local_var.get_int(0), 100);
+        assert_eq!(local_var.get_int(1), -100);
+        assert_eq!(local_var.get_long(2), 2997924580);
+        assert_eq!(local_var.get_long(4), -2997924580);
+        assert_eq!(local_var.get_float(6), std::f64::consts::PI as f32);
+        assert_eq!(local_var.get_double(7), std::f64::consts::E);
+        assert_eq!(local_var.get_ref(9), object);
     }
 
     #[test]
@@ -367,14 +367,12 @@ mod tests {
         operand_stack.push_double(std::f64::consts::E);
         let object = &mut Object {} as *mut Object;
         operand_stack.push_ref(object);
-        let pop_ref = operand_stack.pop_ref();
-        println!("{:?}", pop_ref);
-        assert_eq!(pop_ref, object);
-        println!("{:?}", operand_stack.pop_double());
-        println!("{:?}", operand_stack.pop_float());
-        println!("{:?}", operand_stack.pop_long());
-        println!("{:?}", operand_stack.pop_long());
-        println!("{:?}", operand_stack.pop_int());
-        println!("{:?}", operand_stack.pop_int());
+        assert_eq!(operand_stack.pop_ref(), object);
+        assert_eq!(operand_stack.pop_double(), std::f64::consts::E);
+        assert_eq!(operand_stack.pop_float(), std::f64::consts::PI as f32);
+        assert_eq!(operand_stack.pop_long(), -2997924580);
+        assert_eq!(operand_stack.pop_long(), 2997924580);
+        assert_eq!(operand_stack.pop_int(), -100);
+        assert_eq!(operand_stack.pop_int(), 100);
     }
 }
