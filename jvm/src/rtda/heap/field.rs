@@ -7,8 +7,8 @@ use std::ptr::NonNull;
 #[derive(Debug)]
 pub struct Field {
     pub access_flags: u16,
-    pub name_index: u16,
-    pub descriptor_index: u16,
+    pub name: String,
+    pub descriptor: String,
     pub const_value_index: Option<u16>,
     pub slot_id: Option<u16>,
     pub class: NonNull<Class>,
@@ -26,10 +26,12 @@ impl Field {
                 const_value_index = Some(constant_value_index);
             }
         }
+        let name = unsafe { class.constant_pool.as_ref().get_utf8(field_info.name_index as usize) };
+        let descriptor = unsafe { class.constant_pool.as_ref().get_utf8(field_info.descriptor_index as usize) };
         Self {
             access_flags: field_info.access_flags,
-            name_index: field_info.name_index,
-            descriptor_index: field_info.descriptor_index,
+            name: String::from_utf8(name).unwrap(),
+            descriptor: String::from_utf8(descriptor).unwrap(),
             const_value_index,
             slot_id: None,
             class: NonNull::from(class),
@@ -66,31 +68,11 @@ impl Field {
     }
 
     pub fn is_long(&self) -> bool {
-        self.descriptor() == "J"
+        self.descriptor == "J"
     }
 
     pub fn is_double(&self) -> bool {
-        self.descriptor() == "D"
-    }
-
-    pub fn name(&self) -> &String {
-        unsafe {
-            self.class
-                .as_ref()
-                .constant_pool
-                .as_ref()
-                .get_str(self.name_index as usize)
-        }
-    }
-
-    pub fn descriptor(&self) -> &String {
-        unsafe {
-            self.class
-                .as_ref()
-                .constant_pool
-                .as_ref()
-                .get_str(self.descriptor_index as usize)
-        }
+        self.descriptor == "D"
     }
 }
 

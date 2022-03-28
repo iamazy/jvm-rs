@@ -55,9 +55,9 @@ pub fn get_utf8(constant_pool: ConstantPoolRef, index: usize) -> &[u8] {
     }
 }
 
-pub fn get_str(constant_pool: ConstantPoolRef, index: usize) -> &str {
+pub fn get_str(constant_pool: ConstantPoolRef, index: usize) -> String {
     let utf8 = get_utf8(constant_pool.clone(), index);
-    std::str::from_utf8(utf8).unwrap()
+    String::from_utf8(utf8.to_vec()).unwrap()
 }
 
 pub fn parse(input: &[u8]) -> Res<&[u8], ClassFile> {

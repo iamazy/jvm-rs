@@ -7,8 +7,8 @@ use std::ptr::NonNull;
 #[derive(Debug)]
 pub struct Method {
     pub access_flags: u16,
-    pub name_index: u16,
-    pub descriptor_index: u16,
+    pub name: String,
+    pub descriptor: String,
     pub class: NonNull<Class>,
     max_stack: usize,
     max_locals: usize,
@@ -18,10 +18,12 @@ pub struct Method {
 
 impl Method {
     pub fn new(class: &mut Class, method_info: &classfile::MethodInfo) -> Self {
+        let name = unsafe { class.constant_pool.as_ref().get_utf8(method_info.name_index as usize) };
+        let descriptor = unsafe { class.constant_pool.as_ref().get_utf8(method_info.descriptor_index as usize) };
         let mut method = Method {
             access_flags: method_info.access_flags,
-            name_index: method_info.name_index,
-            descriptor_index: method_info.descriptor_index,
+            name: String::from_utf8(name).unwrap(),
+            descriptor: String::from_utf8(descriptor).unwrap(),
             class: NonNull::from(class),
             max_stack: 0,
             max_locals: 0,
@@ -34,26 +36,6 @@ impl Method {
             method.code = Some(code.code.to_vec());
         }
         method
-    }
-
-    pub fn name(&self) -> &String {
-        unsafe {
-            self.class
-                .as_ref()
-                .constant_pool
-                .as_ref()
-                .get_str(self.name_index as usize)
-        }
-    }
-
-    pub fn descriptor(&self) -> &String {
-        unsafe {
-            self.class
-                .as_ref()
-                .constant_pool
-                .as_ref()
-                .get_str(self.descriptor_index as usize)
-        }
     }
 
     pub fn is_public(&self) -> bool {

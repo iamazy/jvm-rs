@@ -34,14 +34,14 @@ impl ClassLoader {
 
     pub fn define_class(&mut self, data: &[u8]) -> anyhow::Result<Class> {
         let mut class = parse_class(data)?;
-        if class.name() != "java/lang/Object" {
-            let super_class = self.load_class(class.super_class_name())?;
+        if class.name != "java/lang/Object" {
+            let super_class = self.load_class(class.super_class_name.as_ref().unwrap())?;
             class.super_class = Some(Box::leak(Box::new(super_class)).into());
         }
-        let interface_count = class.interface_names().len();
+        let interface_count = class.interface_names.len();
         if interface_count > 0 {
             for idx in 0..interface_count {
-                let class_boxed = self.load_class(class.interface_names()[idx])?;
+                let class_boxed = self.load_class(&class.interface_names[idx])?;
                 class
                     .interfaces
                     .push(Box::leak(Box::new(class_boxed)).into());
@@ -78,16 +78,16 @@ mod tests {
         let class_path = ClassPath::new("".to_string(), "../data/jvm8".to_string());
         let mut class_loader = ClassLoader::new(class_path);
         let class = class_loader.load_class(&"User".to_string()).unwrap();
-        assert_eq!(class.name(), "User");
-        class_loader.class_map.iter().for_each(|entry| {
-            println!("{} -> {:?}", entry.key(), unsafe {
-                for field in &entry.value().as_ref().fields {
-                    println!("{}", field.class.as_ref().name());
-                }
-            });
-        });
-        // for field in class.fields {
-        //     println!("{}", field.name());
-        // }
+        assert_eq!(class.name, "User");
+        assert_eq!(class.super_class_name.unwrap(), "java/lang/Object");
+        assert_eq!(class.fields.len(), 3);
+        for field in class.fields.iter().as_ref() {
+            println!("{}", field.name);
+        }
+
+        let super_class = unsafe { class.super_class.unwrap().as_ref() };
+        assert_eq!(super_class.name, "java/lang/Object");
+        assert_eq!(super_class.super_class_name, None);
+        assert_eq!(super_class.fields.len(), 0);
     }
 }
