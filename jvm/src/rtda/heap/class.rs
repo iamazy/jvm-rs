@@ -1,9 +1,9 @@
 use crate::rtda::heap::access_flags::AccessFlag;
 use crate::rtda::heap::class_loader::ClassLoader;
-use crate::rtda::heap::constant_pool::ConstantPool;
+use crate::rtda::heap::constant_pool::{Constant, ConstantPool};
 use crate::rtda::heap::field::{new_fields, Field};
 use crate::rtda::heap::method::{new_methods, Method};
-use crate::rtda::Slot;
+use crate::rtda::LocalVars;
 use classfile::{get_str, ClassFile};
 use std::ptr::NonNull;
 
@@ -22,7 +22,7 @@ pub struct Class {
     pub interfaces: Vec<NonNull<Class>>,
     pub instance_slot_count: usize,
     pub static_slot_count: usize,
-    pub static_vars: Vec<Slot>,
+    pub static_vars: Option<LocalVars>,
 }
 
 impl Class {
@@ -67,7 +67,7 @@ impl Class {
             interfaces: Vec::with_capacity(class_file.interfaces.len()),
             instance_slot_count: 0,
             static_slot_count: 0,
-            static_vars: vec![],
+            static_vars: None,
         };
 
         class.constant_pool = Box::leak(Box::new(constant_pool)).into();
@@ -84,6 +84,98 @@ impl Class {
             class.methods.push(method);
         }
         class
+    }
+
+    pub fn calc_instance_field_slot_ids(&mut self) {
+        let mut slot_id: usize = 0;
+        if self.super_class.is_some() {
+            slot_id = unsafe { self.super_class.unwrap().as_ref().instance_slot_count };
+        }
+        for field in self.fields.iter_mut() {
+            if !field.is_static() {
+                field.slot_id = slot_id;
+                slot_id += 1;
+                if field.is_long() || field.is_double() {
+                    slot_id += 1;
+                }
+            }
+        }
+        self.instance_slot_count = slot_id;
+    }
+
+    pub fn calc_static_field_slot_ids(&mut self) {
+        let mut slot_id: usize = 0;
+        for field in self.fields.iter_mut() {
+            if field.is_static() {
+                field.slot_id = slot_id;
+                slot_id += 1;
+                if field.is_long() || field.is_double() {
+                    slot_id += 1;
+                }
+            }
+        }
+        self.static_slot_count = slot_id;
+    }
+
+    pub fn alloc_init_static_vars(&mut self) {
+        self.static_vars = Some(LocalVars::new(self.static_slot_count));
+        for field in self.fields.iter_mut().as_ref() {
+            if field.is_static() && field.is_final() && field.const_value_index > 0 {
+                match field.descriptor.as_str() {
+                    "Z" | "B" | "C" | "S" | "I" => {
+                        if let Constant::Integer(int) = unsafe {
+                            self.constant_pool
+                                .as_ref()
+                                .get(field.const_value_index as usize)
+                        } {
+                            self.static_vars
+                                .as_mut()
+                                .unwrap()
+                                .set_int(field.slot_id, *int);
+                        }
+                    }
+                    "J" => {
+                        if let Constant::Long(long) = unsafe {
+                            self.constant_pool
+                                .as_ref()
+                                .get(field.const_value_index as usize)
+                        } {
+                            self.static_vars
+                                .as_mut()
+                                .unwrap()
+                                .set_long(field.slot_id, *long);
+                        }
+                    }
+                    "F" => {
+                        if let Constant::Float(float) = unsafe {
+                            self.constant_pool
+                                .as_ref()
+                                .get(field.const_value_index as usize)
+                        } {
+                            self.static_vars
+                                .as_mut()
+                                .unwrap()
+                                .set_float(field.slot_id, *float);
+                        }
+                    }
+                    "D" => {
+                        if let Constant::Double(double) = unsafe {
+                            self.constant_pool
+                                .as_ref()
+                                .get(field.const_value_index as usize)
+                        } {
+                            self.static_vars
+                                .as_mut()
+                                .unwrap()
+                                .set_double(field.slot_id, *double);
+                        }
+                    }
+                    _ => {
+                        unimplemented!("please implement me")
+                    }
+                }
+            }
+        }
     }
 
     // access_flags

@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn dir_entry() {
         let entry = DirEntry::new("../data/jvm8/".to_string()).unwrap();
-        let bytes = entry.read_class("HelloWorld.class").unwrap();
+        let bytes = entry.read_class("GaussTest.class").unwrap();
         assert_eq!(bytes[..4], [0xCA, 0xFE, 0xBA, 0xBE]);
     }
 
@@ -193,7 +193,7 @@ mod tests {
     #[test]
     fn composite_entry() {
         let entry = CompositeEntry::new("../data/jvm8/rt.jar:../data/jvm8/".to_string()).unwrap();
-        let bytes = entry.read_class("HelloWorld.class").unwrap();
+        let bytes = entry.read_class("GaussTest.class").unwrap();
         assert_eq!(bytes[..4], [0xCA, 0xFE, 0xBA, 0xBE]);
     }
 

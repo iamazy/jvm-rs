@@ -1139,7 +1139,7 @@ mod test {
 
     #[test]
     fn read_class_file() {
-        let file = std::fs::File::open("../data/jvm8/HelloWorld.class").unwrap();
+        let file = std::fs::File::open("../data/jvm8/GaussTest.class").unwrap();
         let bytes: Vec<u8> = file.bytes().map(|x| x.unwrap()).collect();
         let ret = parse(bytes.as_slice());
 

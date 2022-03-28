@@ -115,16 +115,6 @@ pub struct Slot {
     r#ref: *mut Object,
 }
 
-impl Drop for Slot {
-    fn drop(&mut self) {
-        if !self.r#ref.is_null() {
-            unsafe {
-                ptr::drop_in_place(self.r#ref);
-            }
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct LocalVars(Vec<Slot>);
 
@@ -345,7 +335,7 @@ mod tests {
         local_var.set_long(4, -2997924580);
         local_var.set_float(6, std::f64::consts::PI as f32);
         local_var.set_double(7, std::f64::consts::E);
-        let object = &mut Object {} as *mut Object;
+        let object = &mut Object::new(1) as *mut Object;
         local_var.set_ref(9, object);
         assert_eq!(local_var.get_int(0), 100);
         assert_eq!(local_var.get_int(1), -100);
@@ -365,7 +355,7 @@ mod tests {
         operand_stack.push_long(-2997924580);
         operand_stack.push_float(std::f64::consts::PI as f32);
         operand_stack.push_double(std::f64::consts::E);
-        let object = &mut Object {} as *mut Object;
+        let object = &mut Object::new(1) as *mut Object;
         operand_stack.push_ref(object);
         assert_eq!(operand_stack.pop_ref(), object);
         assert_eq!(operand_stack.pop_double(), std::f64::consts::E);
