@@ -201,15 +201,4 @@ impl ConstantPool {
             _ => panic!("java.lang.ClassFormatError"),
         }
     }
-
-    pub fn get_str(&self, index: usize) -> &String {
-        match self.get(index as usize) {
-            Constant::String(string) => string,
-            Constant::Class(ClassRef { name, .. }) => name,
-            n => {
-                println!("{:?}", n);
-                panic!("java.lang.ClassFormatError")
-            }
-        }
-    }
 }
