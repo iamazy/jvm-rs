@@ -5,7 +5,6 @@ use crate::rtda::heap::field::{new_fields, Field};
 use crate::rtda::heap::method::{new_methods, Method};
 use crate::rtda::Slot;
 use classfile::ClassFile;
-use std::marker::PhantomPinned;
 use std::ptr::NonNull;
 
 #[derive(Debug)]
@@ -24,7 +23,6 @@ pub struct Class {
     pub instance_slot_count: usize,
     pub static_slot_count: usize,
     pub static_vars: Vec<Slot>,
-    _pin: PhantomPinned,
 }
 
 impl Class {
@@ -44,7 +42,6 @@ impl Class {
             instance_slot_count: 0,
             static_slot_count: 0,
             static_vars: vec![],
-            _pin: PhantomPinned,
         };
         // initialize constant pool
         let mut constant_pool = ConstantPool::new(class_file.constant_pool.len());

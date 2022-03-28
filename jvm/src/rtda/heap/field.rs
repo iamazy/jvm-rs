@@ -1,7 +1,7 @@
 use crate::rtda::heap::access_flags::AccessFlag;
 use crate::rtda::heap::class::Class;
 use classfile::{AttributeType, FieldInfo};
-use std::marker::{PhantomData, PhantomPinned};
+use std::marker::PhantomData;
 use std::ptr::NonNull;
 
 #[derive(Debug)]
@@ -13,7 +13,6 @@ pub struct Field {
     pub slot_id: Option<u16>,
     pub class: NonNull<Class>,
     marker: PhantomData<Box<Class>>,
-    _pin: PhantomPinned,
 }
 
 impl Field {
@@ -35,7 +34,6 @@ impl Field {
             slot_id: None,
             class: NonNull::from(class),
             marker: PhantomData,
-            _pin: PhantomPinned,
         }
     }
 

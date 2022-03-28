@@ -1,7 +1,7 @@
 use crate::rtda::heap::access_flags::AccessFlag;
 use crate::rtda::heap::class::Class;
 use classfile::MethodInfo;
-use std::marker::{PhantomData, PhantomPinned};
+use std::marker::PhantomData;
 use std::ptr::NonNull;
 
 #[derive(Debug)]
@@ -14,7 +14,6 @@ pub struct Method {
     max_locals: usize,
     code: Option<Vec<u8>>,
     marker: PhantomData<Box<Class>>,
-    _pin: PhantomPinned,
 }
 
 impl Method {
@@ -28,7 +27,6 @@ impl Method {
             max_locals: 0,
             code: None,
             marker: PhantomData,
-            _pin: PhantomPinned,
         };
         if let Some(code) = method_info.code_attribute() {
             method.max_stack = code.max_stack as usize;
