@@ -17,18 +17,18 @@ impl ClassLoader {
         }
     }
 
-    pub fn load_class(&mut self, name: &String) -> anyhow::Result<Class> {
+    pub fn load_class(&mut self, name: &str) -> anyhow::Result<Class> {
         if self.class_map.contains_key(name) {
             return unsafe { Ok(*Box::from_raw(self.class_map.get(name).unwrap().as_ptr())) };
         }
         let data = self.read_class(name)?;
         let mut class = self.define_class(data.as_slice())?;
         self.class_map
-            .insert(name.clone(), NonNull::from(&mut class));
+            .insert(name.to_string(), NonNull::from(&mut class));
         Ok(class)
     }
 
-    fn read_class(&self, name: &String) -> anyhow::Result<Vec<u8>> {
+    fn read_class(&self, name: &str) -> anyhow::Result<Vec<u8>> {
         self.class_path.read_class(name)
     }
 
