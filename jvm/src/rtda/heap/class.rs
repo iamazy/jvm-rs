@@ -4,7 +4,7 @@ use crate::rtda::heap::constant_pool::ConstantPool;
 use crate::rtda::heap::field::{new_fields, Field};
 use crate::rtda::heap::method::{new_methods, Method};
 use crate::rtda::Slot;
-use classfile::{ClassFile, get_str};
+use classfile::{get_str, ClassFile};
 use std::ptr::NonNull;
 
 #[derive(Debug)]
@@ -31,18 +31,27 @@ impl Class {
         // initialize constant pool
         let constant_pool = ConstantPool::new(class_file.constant_pool.clone());
         // this class
-        let name = get_str(class_file.constant_pool.clone(), class_file.this_class as usize);
+        let name = get_str(
+            class_file.constant_pool.clone(),
+            class_file.this_class as usize,
+        );
 
         //  super class
         let mut super_class_name = None;
         if class_file.super_class > 0 {
-            super_class_name = Some(get_str(class_file.constant_pool.clone(), class_file.super_class as usize));
+            super_class_name = Some(get_str(
+                class_file.constant_pool.clone(),
+                class_file.super_class as usize,
+            ));
         }
 
         // interface names
         let mut interface_names = Vec::with_capacity(class_file.interfaces.len());
         for interface in &class_file.interfaces {
-            interface_names.push(get_str(class_file.constant_pool.clone(), *interface as usize));
+            interface_names.push(get_str(
+                class_file.constant_pool.clone(),
+                *interface as usize,
+            ));
         }
 
         let mut class = Self {
@@ -134,7 +143,10 @@ mod tests {
                 assert_eq!(class.super_class_name.unwrap(), "java/lang/Object");
                 assert_eq!(class.fields.len(), 3);
                 for field in class.fields.iter().as_ref() {
-                    println!("{}", field.name);
+                    println!("field: {}", field.name);
+                }
+                for method in class.methods.iter().as_ref() {
+                    println!("method: {}", method.name);
                 }
             }
         }

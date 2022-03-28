@@ -83,9 +83,10 @@ impl ConstantPool {
                     constant_pool.consts.push(Constant::Double(*d));
                 }
                 classfile::Constant::String { string_index } => {
-                    constant_pool.consts.push(Constant::String(
-                        get_str(cp.clone(), *string_index as usize),
-                    ));
+                    constant_pool.consts.push(Constant::String(get_str(
+                        cp.clone(),
+                        *string_index as usize,
+                    )));
                 }
                 classfile::Constant::Utf8(utf8) => {
                     constant_pool.consts.push(Constant::Utf8(utf8.to_vec()));
@@ -126,9 +127,9 @@ impl ConstantPool {
                     name_and_type_index,
                 } => {
                     if let Some(classfile::Constant::NameAndType {
-                                    name_index,
-                                    descriptor_index,
-                                }) = cp.get(*name_and_type_index as usize)
+                        name_index,
+                        descriptor_index,
+                    }) = cp.get(*name_and_type_index as usize)
                     {
                         constant_pool.consts.push(Constant::FieldRef(FieldRef {
                             name: get_str(cp.clone(), *name_index as usize),
@@ -145,9 +146,9 @@ impl ConstantPool {
                     name_and_type_index,
                 } => {
                     if let Some(classfile::Constant::NameAndType {
-                                    name_index,
-                                    descriptor_index,
-                                }) = cp.get(*name_and_type_index as usize)
+                        name_index,
+                        descriptor_index,
+                    }) = cp.get(*name_and_type_index as usize)
                     {
                         constant_pool.consts.push(Constant::MethodRef(MethodRef {
                             name: get_str(cp.clone(), *name_index as usize),
@@ -164,19 +165,20 @@ impl ConstantPool {
                     name_and_type_index,
                 } => {
                     if let Some(classfile::Constant::NameAndType {
-                                    name_index,
-                                    descriptor_index,
-                                }) = cp.get(*name_and_type_index as usize)
+                        name_index,
+                        descriptor_index,
+                    }) = cp.get(*name_and_type_index as usize)
                     {
-                        constant_pool.consts
-                            .push(Constant::InterfaceMethodRef(InterfaceMethodRef {
+                        constant_pool.consts.push(Constant::InterfaceMethodRef(
+                            InterfaceMethodRef {
                                 name: get_str(cp.clone(), *name_index as usize),
                                 descriptor: get_str(cp.clone(), *descriptor_index as usize),
                                 class_name: get_str(cp.clone(), *class_index as usize),
                                 constant_pool: None,
                                 class: None,
                                 method: None,
-                            }));
+                            },
+                        ));
                     }
                 }
                 _ => {

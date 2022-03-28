@@ -26,8 +26,18 @@ impl Field {
                 const_value_index = Some(constant_value_index);
             }
         }
-        let name = unsafe { class.constant_pool.as_ref().get_utf8(field_info.name_index as usize) };
-        let descriptor = unsafe { class.constant_pool.as_ref().get_utf8(field_info.descriptor_index as usize) };
+        let name = unsafe {
+            class
+                .constant_pool
+                .as_ref()
+                .get_utf8(field_info.name_index as usize)
+        };
+        let descriptor = unsafe {
+            class
+                .constant_pool
+                .as_ref()
+                .get_utf8(field_info.descriptor_index as usize)
+        };
         Self {
             access_flags: field_info.access_flags,
             name: String::from_utf8(name).unwrap(),

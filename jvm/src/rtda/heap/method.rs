@@ -18,8 +18,18 @@ pub struct Method {
 
 impl Method {
     pub fn new(class: &mut Class, method_info: &classfile::MethodInfo) -> Self {
-        let name = unsafe { class.constant_pool.as_ref().get_utf8(method_info.name_index as usize) };
-        let descriptor = unsafe { class.constant_pool.as_ref().get_utf8(method_info.descriptor_index as usize) };
+        let name = unsafe {
+            class
+                .constant_pool
+                .as_ref()
+                .get_utf8(method_info.name_index as usize)
+        };
+        let descriptor = unsafe {
+            class
+                .constant_pool
+                .as_ref()
+                .get_utf8(method_info.descriptor_index as usize)
+        };
         let mut method = Method {
             access_flags: method_info.access_flags,
             name: String::from_utf8(name).unwrap(),

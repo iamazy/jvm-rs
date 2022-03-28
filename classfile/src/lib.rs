@@ -48,7 +48,7 @@ pub fn get_utf8(constant_pool: ConstantPoolRef, index: usize) -> &[u8] {
         Some(Constant::Package { name_index }) => {
             get_utf8(constant_pool.clone(), *name_index as usize)
         }
-        _ => unreachable!("constant pool index mismatch")
+        _ => unreachable!("constant pool index mismatch"),
     }
 }
 
