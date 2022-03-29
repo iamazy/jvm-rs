@@ -218,6 +218,17 @@ impl Class {
     pub fn is_enum(&self) -> bool {
         self.access_flags & AccessFlag::ACC_ENUM.bits() != 0
     }
+
+    pub fn is_accessible_to(&self, class: &Class) -> bool {
+        self.is_publish() || self.package_name() == class.package_name()
+    }
+
+    pub fn package_name(&self) -> Option<&str> {
+        if let Some(pos) = self.name.rfind('/') {
+            return Some(self.name[..pos].as_ref());
+        }
+        None
+    }
 }
 
 #[cfg(test)]

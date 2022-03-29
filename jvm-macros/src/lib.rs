@@ -84,3 +84,35 @@ fn impl_index16(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStrea
     };
     Ok(ret)
 }
+
+#[proc_macro_derive(SymbolRef)]
+pub fn symbolic_ref_instruction_derive(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    match impl_symbol_ref(&input) {
+        Ok(token_stream) => token_stream.into(),
+        Err(error) => error.to_compile_error().into(),
+    }
+}
+
+fn impl_symbol_ref(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+    let struct_ident = &input.ident;
+    let ret = quote! {
+        impl SymbolicRef for #struct_ident {
+            unsafe fn resolved_class(&mut self) -> anyhow::Result<()> {
+                let mut class = self.constant_pool.as_mut().class.as_mut();
+                let class_loaded = class.loader.as_mut().load_class(self.name.as_str());
+                match class_loaded {
+                    Ok(class_loaded) => {
+                        if !class_loaded.is_accessible_to(class) {
+                            return Err(anyhow!("java.lang.IllegalAccessError"));
+                        }
+                        self.class = Some(NonNull::from(&class_loaded));
+                        Ok(())
+                    }
+                    Err(e) => Err(e)
+                }
+            }
+        }
+    };
+    Ok(ret)
+}

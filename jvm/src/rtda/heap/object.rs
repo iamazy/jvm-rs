@@ -1,6 +1,6 @@
-use std::marker::PhantomData;
 use crate::rtda::heap::class::Class;
 use crate::rtda::Slot;
+use std::marker::PhantomData;
 use std::ptr::NonNull;
 
 #[derive(Debug, Clone)]

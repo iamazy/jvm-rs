@@ -4,6 +4,8 @@ use anyhow::anyhow;
 use dashmap::DashMap;
 use std::ptr::NonNull;
 
+const OBJECT_CLASS_NAME: &str = "java/lang/Object";
+
 pub struct ClassLoader {
     class_path: ClassPath,
     pub class_map: DashMap<String, NonNull<Class>>,
@@ -34,7 +36,7 @@ impl ClassLoader {
 
     pub fn define_class(&mut self, data: &[u8]) -> anyhow::Result<Class> {
         let mut class = parse_class(data)?;
-        if class.name != "java/lang/Object" {
+        if class.name != OBJECT_CLASS_NAME {
             let super_class = self.load_class(class.super_class_name.as_ref().unwrap())?;
             class.super_class = Some(Box::leak(Box::new(super_class)).into());
         }

@@ -1,7 +1,9 @@
 use crate::rtda::heap::class::Class;
 use crate::rtda::heap::field::Field;
 use crate::rtda::heap::method::Method;
+use anyhow::anyhow;
 use classfile::{get_str, ConstantPoolRef};
+use jvm_macros::SymbolRef;
 use std::ptr::NonNull;
 
 #[derive(Debug, Clone)]
@@ -24,31 +26,35 @@ pub enum Constant {
     Package { name: String },
 }
 
-#[derive(Debug, Clone)]
+pub trait SymbolicRef {
+    unsafe fn resolved_class(&mut self) -> anyhow::Result<()>;
+}
+
+#[derive(Debug, Clone, SymbolRef)]
 pub struct ClassRef {
     pub name: String,
-    constant_pool: Option<NonNull<ConstantPool>>,
+    constant_pool: NonNull<ConstantPool>,
     class: Option<NonNull<Class>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, SymbolRef)]
 pub struct MethodRef {
     pub name: String,
     pub descriptor: String,
     pub class_name: String,
-    constant_pool: Option<NonNull<ConstantPool>>,
+    constant_pool: NonNull<ConstantPool>,
     class: Option<NonNull<Class>>,
     method: Option<NonNull<Method>>,
 }
 
 pub type InterfaceMethodRef = MethodRef;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, SymbolRef)]
 pub struct FieldRef {
     pub name: String,
     pub descriptor: String,
     pub class_name: String,
-    constant_pool: Option<NonNull<ConstantPool>>,
+    constant_pool: NonNull<ConstantPool>,
     class: Option<NonNull<Class>>,
     field: Option<NonNull<Field>>,
 }
@@ -116,11 +122,12 @@ impl ConstantPool {
                     });
                 }
                 classfile::Constant::Class { name_index } => {
-                    constant_pool.consts.push(Constant::Class(ClassRef {
+                    let class_ref = Constant::Class(ClassRef {
                         name: get_str(cp.clone(), *name_index as usize),
-                        constant_pool: None,
+                        constant_pool: NonNull::from(&constant_pool),
                         class: None,
-                    }));
+                    });
+                    constant_pool.consts.push(class_ref);
                 }
                 classfile::Constant::FieldRef {
                     class_index,
@@ -131,14 +138,15 @@ impl ConstantPool {
                         descriptor_index,
                     }) = cp.get(*name_and_type_index as usize)
                     {
-                        constant_pool.consts.push(Constant::FieldRef(FieldRef {
+                        let field_ref = Constant::FieldRef(FieldRef {
                             name: get_str(cp.clone(), *name_index as usize),
                             descriptor: get_str(cp.clone(), *descriptor_index as usize),
                             class_name: get_str(cp.clone(), *class_index as usize),
-                            constant_pool: None,
+                            constant_pool: NonNull::from(&constant_pool),
                             class: None,
                             field: None,
-                        }));
+                        });
+                        constant_pool.consts.push(field_ref);
                     }
                 }
                 classfile::Constant::MethodRef {
@@ -150,14 +158,15 @@ impl ConstantPool {
                         descriptor_index,
                     }) = cp.get(*name_and_type_index as usize)
                     {
-                        constant_pool.consts.push(Constant::MethodRef(MethodRef {
+                        let method_ref = Constant::MethodRef(MethodRef {
                             name: get_str(cp.clone(), *name_index as usize),
                             descriptor: get_str(cp.clone(), *descriptor_index as usize),
                             class_name: get_str(cp.clone(), *class_index as usize),
-                            constant_pool: None,
+                            constant_pool: NonNull::from(&constant_pool),
                             class: None,
                             method: None,
-                        }));
+                        });
+                        constant_pool.consts.push(method_ref);
                     }
                 }
                 classfile::Constant::InterfaceMethodRef {
@@ -169,16 +178,16 @@ impl ConstantPool {
                         descriptor_index,
                     }) = cp.get(*name_and_type_index as usize)
                     {
-                        constant_pool.consts.push(Constant::InterfaceMethodRef(
-                            InterfaceMethodRef {
+                        let interface_method_ref =
+                            Constant::InterfaceMethodRef(InterfaceMethodRef {
                                 name: get_str(cp.clone(), *name_index as usize),
                                 descriptor: get_str(cp.clone(), *descriptor_index as usize),
                                 class_name: get_str(cp.clone(), *class_index as usize),
-                                constant_pool: None,
+                                constant_pool: NonNull::from(&constant_pool),
                                 class: None,
                                 method: None,
-                            },
-                        ));
+                            });
+                        constant_pool.consts.push(interface_method_ref);
                     }
                 }
                 _ => {
