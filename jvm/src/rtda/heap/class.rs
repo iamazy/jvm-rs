@@ -223,6 +223,18 @@ impl Class {
         self.is_publish() || self.package_name() == class.package_name()
     }
 
+    pub fn is_sub_class_of(&self, class: &Class) -> bool {
+        loop {
+            if self.super_class.is_some() {
+                if self.super_class_name.as_ref().unwrap() == class.name.as_str() {
+                    return true;
+                }
+            } else {
+                return false;
+            }
+        }
+    }
+
     pub fn package_name(&self) -> Option<&str> {
         if let Some(pos) = self.name.rfind('/') {
             return Some(self.name[..pos].as_ref());

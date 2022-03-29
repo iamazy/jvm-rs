@@ -27,7 +27,7 @@ pub enum Constant {
 }
 
 pub trait SymbolicRef {
-    unsafe fn resolved_class(&mut self) -> anyhow::Result<()>;
+    unsafe fn resolved_class_ref(&mut self) -> anyhow::Result<()>;
 }
 
 #[derive(Debug, Clone, SymbolRef)]

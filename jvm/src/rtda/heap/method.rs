@@ -56,6 +56,10 @@ impl Method {
         self.access_flags & AccessFlag::ACC_PRIVATE.bits() != 0
     }
 
+    pub fn is_protected(&self) -> bool {
+        self.access_flags & AccessFlag::ACC_PROTECTED.bits() != 0
+    }
+
     pub fn is_static(&self) -> bool {
         self.access_flags & AccessFlag::ACC_STATIC.bits() != 0
     }
@@ -86,6 +90,24 @@ impl Method {
 
     pub fn is_strict(&self) -> bool {
         self.access_flags & AccessFlag::ACC_STRICT.bits() != 0
+    }
+
+    pub fn is_accessible_to(&self, class: &Class) -> bool {
+        if self.is_public() {
+            return true;
+        }
+        unsafe {
+            let this = self.class.as_ref();
+            if self.is_protected() {
+                return this.name == class.name
+                    || class.is_sub_class_of(this)
+                    || this.package_name() == class.package_name();
+            }
+            if !self.is_private() {
+                return this.package_name() == class.package_name();
+            }
+            this.name == class.name
+        }
     }
 
     pub fn max_locals(&self) -> usize {
