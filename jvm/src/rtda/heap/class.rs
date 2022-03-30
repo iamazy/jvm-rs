@@ -223,12 +223,14 @@ impl Class {
         self.is_publish() || self.package_name() == class.package_name()
     }
 
-    pub fn is_sub_class_of(&self, class: &Class) -> bool {
+    pub fn is_sub_class_of(&self, class: NonNull<Class>) -> bool {
+        let mut child = self;
         loop {
-            if self.super_class.is_some() {
-                if self.super_class_name.as_ref().unwrap() == class.name.as_str() {
+            if child.super_class.is_some() {
+                if child.super_class.unwrap() == class {
                     return true;
                 }
+                child = unsafe { self.super_class.unwrap().as_ref() };
             } else {
                 return false;
             }

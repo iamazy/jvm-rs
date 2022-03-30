@@ -100,7 +100,7 @@ impl Method {
             let this = self.class.as_ref();
             if self.is_protected() {
                 return this.name == class.name
-                    || class.is_sub_class_of(this)
+                    || class.is_sub_class_of(NonNull::from(this))
                     || this.package_name() == class.package_name();
             }
             if !self.is_private() {
