@@ -98,14 +98,16 @@ fn impl_symbol_ref(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenSt
     let struct_ident = &input.ident;
     let ret = quote! {
         impl SymbolicRef for #struct_ident {
-            unsafe fn resolved_class_ref(&mut self) -> anyhow::Result<()> {
-                let mut class = self.constant_pool.as_mut().class.as_mut();
-                let class_loaded = class.loader.as_mut().load_class(&self.name.as_str())?;
-                if !class_loaded.is_accessible_to(class) {
-                    return Err(anyhow!("java.lang.IllegalAccessError"));
+            fn resolved_class_ref(&mut self) -> anyhow::Result<()> {
+                unsafe {
+                    let class = self.constant_pool.as_mut().class.as_mut();
+                    let class_loaded = class.loader.as_mut().load_class(&self.name.as_str())?;
+                    if !class_loaded.is_accessible_to(class) {
+                        return Err(anyhow!("java.lang.IllegalAccessError"));
+                    }
+                    self.class = Some(NonNull::from(class_loaded));
+                    Ok(())
                 }
-                self.class = Some(NonNull::from(class_loaded));
-                Ok(())
             }
         }
 

@@ -27,7 +27,7 @@ pub enum Constant {
 }
 
 pub trait SymbolicRef {
-    unsafe fn resolved_class_ref(&mut self) -> anyhow::Result<()>;
+    fn resolved_class_ref(&mut self) -> anyhow::Result<()>;
 }
 
 #[derive(Debug, Clone, SymbolRef)]
@@ -59,9 +59,30 @@ pub struct FieldRef {
     field: Option<NonNull<Field>>,
 }
 
+impl FieldRef {
+    pub fn resolve_field_ref(&mut self) -> anyhow::Result<()> {
+        unsafe {
+            let class = self.constant_pool.as_ref().class.as_ref();
+            let field = self
+                .class
+                .unwrap()
+                .as_ref()
+                .look_up_field(self.name.as_str(), self.descriptor.as_str());
+            if field.is_none() {
+                panic!("java.lang.NoSuchFieldError");
+            }
+            if !field.unwrap().is_accessible_to(class) {
+                panic!("java.lang.IllegalAccessError");
+            }
+            self.field = Some(NonNull::from(field.unwrap()));
+            Ok(())
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ConstantPool {
-    class: NonNull<Class>,
+    pub class: NonNull<Class>,
     consts: Vec<Constant>,
 }
 
@@ -122,12 +143,11 @@ impl ConstantPool {
                     });
                 }
                 classfile::Constant::Class { name_index } => {
-                    let class_ref = Constant::Class(ClassRef {
+                    constant_pool.consts.push(Constant::Class(ClassRef {
                         name: get_str(cp.clone(), *name_index as usize),
                         constant_pool: NonNull::from(&constant_pool),
                         class: None,
-                    });
-                    constant_pool.consts.push(class_ref);
+                    }));
                 }
                 classfile::Constant::FieldRef {
                     class_index,
@@ -138,15 +158,14 @@ impl ConstantPool {
                         descriptor_index,
                     }) = cp.get(*name_and_type_index as usize)
                     {
-                        let field_ref = Constant::FieldRef(FieldRef {
+                        constant_pool.consts.push(Constant::FieldRef(FieldRef {
                             name: get_str(cp.clone(), *name_index as usize),
                             descriptor: get_str(cp.clone(), *descriptor_index as usize),
                             class_name: get_str(cp.clone(), *class_index as usize),
                             constant_pool: NonNull::from(&constant_pool),
                             class: None,
                             field: None,
-                        });
-                        constant_pool.consts.push(field_ref);
+                        }));
                     }
                 }
                 classfile::Constant::MethodRef {
@@ -158,15 +177,14 @@ impl ConstantPool {
                         descriptor_index,
                     }) = cp.get(*name_and_type_index as usize)
                     {
-                        let method_ref = Constant::MethodRef(MethodRef {
+                        constant_pool.consts.push(Constant::MethodRef(MethodRef {
                             name: get_str(cp.clone(), *name_index as usize),
                             descriptor: get_str(cp.clone(), *descriptor_index as usize),
                             class_name: get_str(cp.clone(), *class_index as usize),
                             constant_pool: NonNull::from(&constant_pool),
                             class: None,
                             method: None,
-                        });
-                        constant_pool.consts.push(method_ref);
+                        }));
                     }
                 }
                 classfile::Constant::InterfaceMethodRef {
@@ -178,16 +196,16 @@ impl ConstantPool {
                         descriptor_index,
                     }) = cp.get(*name_and_type_index as usize)
                     {
-                        let interface_method_ref =
-                            Constant::InterfaceMethodRef(InterfaceMethodRef {
+                        constant_pool.consts.push(Constant::InterfaceMethodRef(
+                            InterfaceMethodRef {
                                 name: get_str(cp.clone(), *name_index as usize),
                                 descriptor: get_str(cp.clone(), *descriptor_index as usize),
                                 class_name: get_str(cp.clone(), *class_index as usize),
                                 constant_pool: NonNull::from(&constant_pool),
                                 class: None,
                                 method: None,
-                            });
-                        constant_pool.consts.push(interface_method_ref);
+                            },
+                        ));
                     }
                 }
                 _ => {

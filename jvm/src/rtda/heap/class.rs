@@ -59,7 +59,7 @@ impl Class {
             name,
             super_class_name,
             interface_names,
-            constant_pool: NonNull::dangling(),
+            constant_pool: Box::leak(Box::new(constant_pool)).into(),
             loader: NonNull::dangling(),
             fields: Vec::with_capacity(class_file.fields.len()),
             methods: Vec::with_capacity(class_file.methods.len()),
@@ -69,8 +69,6 @@ impl Class {
             static_slot_count: 0,
             static_vars: None,
         };
-
-        class.constant_pool = Box::leak(Box::new(constant_pool)).into();
 
         // initialize fields
         let fields = new_fields(&mut class, &class_file.fields);
@@ -242,6 +240,29 @@ impl Class {
             return Some(self.name[..pos].as_ref());
         }
         None
+    }
+
+    pub fn look_up_field(&self, name: &str, descriptor: &str) -> Option<&Field> {
+        for field in self.fields.iter() {
+            if field.name == name && field.descriptor == descriptor {
+                return Some(field);
+            }
+        }
+        unsafe {
+            for interface in self.interfaces.iter() {
+                if let Some(field) = interface.as_ref().look_up_field(name, descriptor) {
+                    return Some(field);
+                }
+            }
+            if self.super_class.is_some() {
+                return self
+                    .super_class
+                    .unwrap()
+                    .as_ref()
+                    .look_up_field(name, descriptor);
+            }
+        }
+        return None;
     }
 }
 
