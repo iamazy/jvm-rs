@@ -70,6 +70,10 @@ impl Class {
             static_vars: None,
         };
 
+        let class_ptr = NonNull::from(&mut class);
+        unsafe {
+            class.constant_pool.as_mut().class = class_ptr;
+        }
         // initialize fields
         let fields = new_fields(&mut class, &class_file.fields);
         for field in fields {
