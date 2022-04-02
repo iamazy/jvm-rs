@@ -1,10 +1,10 @@
-use std::cell::RefCell;
 use crate::rtda::heap::class::Class;
 use crate::rtda::heap::field::Field;
 use crate::rtda::heap::method::Method;
 use anyhow::anyhow;
 use classfile::{get_str, ConstantPoolRef};
 use jvm_macros::SymbolRef;
+use std::cell::RefCell;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
@@ -62,7 +62,6 @@ pub struct FieldRef {
 }
 
 impl FieldRef {
-
     pub fn resolve_field(&mut self) -> anyhow::Result<Arc<RefCell<Field>>> {
         if self.field.is_none() {
             self.resolve_field_ref();
@@ -74,7 +73,8 @@ impl FieldRef {
         unsafe {
             let cp_class = self.constant_pool.as_ref().class.as_ref();
             let self_class = self.resolved_class()?;
-            let field = self_class.as_ref()
+            let field = self_class
+                .as_ref()
                 .look_up_field(self.name.as_str(), self.descriptor.as_str());
             if field.is_none() {
                 panic!("java.lang.NoSuchFieldError");

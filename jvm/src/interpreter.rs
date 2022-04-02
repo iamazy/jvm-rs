@@ -1,7 +1,7 @@
 use crate::instructions::new_inst;
 use crate::rtda::{Class, Method, Thread};
 use bytes::Buf;
-use classfile::get_utf8;
+
 use std::cell::RefCell;
 use std::io::Cursor;
 use std::sync::Arc;
@@ -37,7 +37,9 @@ fn loop_interpret<T: AsRef<[u8]>>(thread: Arc<RefCell<Thread>>, cursor: &mut Cur
 
 fn get_main_method(class: &Class) -> Option<Arc<RefCell<Method>>> {
     for method in class.methods.iter() {
-        if method.borrow().name.as_str() == "main" && method.borrow().descriptor.as_str() == "([Ljava/lang/String;)V" {
+        if method.borrow().name.as_str() == "main"
+            && method.borrow().descriptor.as_str() == "([Ljava/lang/String;)V"
+        {
             return Some(method.clone());
         }
     }
@@ -46,7 +48,7 @@ fn get_main_method(class: &Class) -> Option<Arc<RefCell<Method>>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::classpath::{ClassPath, Entry};
+    use crate::classpath::ClassPath;
     use crate::interpreter;
     use crate::interpreter::get_main_method;
     use crate::rtda::ClassLoader;

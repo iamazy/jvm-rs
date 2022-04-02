@@ -5,8 +5,8 @@ use std::sync::Arc;
 mod heap;
 mod thread;
 
+pub use crate::rtda::heap::{Class, ClassLoader, Method};
 pub use crate::rtda::thread::Thread;
-pub use crate::rtda::heap::{Method, ClassLoader, Class};
 pub use heap::Object;
 
 #[derive(Debug)]

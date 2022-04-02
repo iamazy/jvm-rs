@@ -12,9 +12,9 @@ mod extended;
 mod loads;
 mod math;
 mod opcode;
+mod refs;
 mod stack;
 mod stores;
-mod refs;
 
 #[rustfmt::skip]
 pub use {

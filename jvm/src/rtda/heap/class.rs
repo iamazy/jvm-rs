@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use crate::rtda::heap::access_flags::AccessFlag;
 use crate::rtda::heap::class_loader::ClassLoader;
 use crate::rtda::heap::constant_pool::{Constant, ConstantPool};
@@ -6,6 +5,7 @@ use crate::rtda::heap::field::{new_fields, Field};
 use crate::rtda::heap::method::{new_methods, Method};
 use crate::rtda::LocalVars;
 use classfile::{get_str, ClassFile};
+use std::cell::RefCell;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
