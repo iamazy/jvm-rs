@@ -8,6 +8,6 @@ mod object;
 
 pub use class::Class;
 pub use class_loader::ClassLoader;
+pub use constant_pool::{Constant, ConstantPool};
 pub use method::Method;
 pub use object::Object;
-pub use constant_pool::{Constant, ConstantPool};

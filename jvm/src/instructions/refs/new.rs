@@ -1,8 +1,7 @@
 use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::{Constant, Object};
-use jvm_macros::Index8;
 use bytes::Buf;
-
+use jvm_macros::Index8;
 
 #[derive(Index8)]
 pub struct NEW {
@@ -19,7 +18,9 @@ impl InstructionExecutor for NEW {
                     panic!("java.lang.InstantiationError");
                 }
                 let mut object = Object::new(class);
-                frame.operand_stack_mut().push_ref(&mut object as *mut Object);
+                frame
+                    .operand_stack_mut()
+                    .push_ref(&mut object as *mut Object);
             }
         }
     }

@@ -5,7 +5,7 @@ use std::sync::Arc;
 mod heap;
 mod thread;
 
-pub use crate::rtda::heap::{Class, ClassLoader, Method, Constant, ConstantPool};
+pub use crate::rtda::heap::{Class, ClassLoader, Constant, ConstantPool, Method};
 pub use crate::rtda::thread::Thread;
 pub use heap::Object;
 
@@ -358,7 +358,7 @@ mod tests {
         let object = &mut Object {
             class: NonNull::dangling(),
             fields: Vec::new(),
-            marker: PhantomData
+            marker: PhantomData,
         } as *mut Object;
         local_var.set_ref(9, object);
         assert_eq!(local_var.get_int(0), 100);
@@ -379,10 +379,10 @@ mod tests {
         operand_stack.push_long(-2997924580);
         operand_stack.push_float(std::f64::consts::PI as f32);
         operand_stack.push_double(std::f64::consts::E);
-        let object = &mut Object{
+        let object = &mut Object {
             class: NonNull::dangling(),
             fields: Vec::new(),
-            marker: PhantomData
+            marker: PhantomData,
         } as *mut Object;
         operand_stack.push_ref(object);
         assert_eq!(operand_stack.pop_ref(), object);
