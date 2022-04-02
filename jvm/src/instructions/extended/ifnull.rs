@@ -2,7 +2,6 @@ use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::Frame;
 use bytes::Buf;
 use jvm_macros::Branch;
-use std::io::Cursor;
 
 #[derive(Branch, Default, Debug)]
 #[allow(non_camel_case_types)]

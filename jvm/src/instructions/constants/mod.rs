@@ -1,7 +1,6 @@
 use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::Frame;
 use jvm_macros::NoOperand;
-use std::io::Cursor;
 
 pub(crate) mod r#const;
 pub(crate) mod ipush;

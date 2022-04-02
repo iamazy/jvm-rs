@@ -5,17 +5,19 @@ use std::ptr::NonNull;
 
 #[derive(Debug, Clone)]
 pub struct Object {
-    class: NonNull<Class>,
-    fields: Vec<Slot>,
-    marker: PhantomData<Box<Class>>,
+    pub(crate) class: NonNull<Class>,
+    pub(crate) fields: Vec<Slot>,
+    pub(crate) marker: PhantomData<Box<Class>>,
 }
 
 impl Object {
-    pub fn new(fields: usize) -> Self {
-        Self {
-            class: NonNull::dangling(),
-            fields: Vec::with_capacity(fields),
-            marker: PhantomData,
+    pub fn new(class: NonNull<Class>) -> Self {
+        unsafe {
+            Self {
+                class,
+                fields: Vec::with_capacity(class.as_ref().instance_slot_count),
+                marker: PhantomData,
+            }
         }
     }
 }

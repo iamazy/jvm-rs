@@ -2,7 +2,6 @@ use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::Frame;
 use jvm_macros::NoOperand;
 use std::cmp::Ordering;
-use std::io::Cursor;
 
 #[derive(NoOperand, Debug)]
 #[allow(non_camel_case_types)]

@@ -14,7 +14,7 @@ fn impl_no_operand(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenSt
     let struct_ident = &input.ident;
     let ret = quote! {
         impl<T: AsRef<[u8]>> InstructionReader<T> for #struct_ident {
-            fn fetch_operands(&mut self, _reader: &mut Cursor<T>) {
+            fn fetch_operands(&mut self, _reader: &mut std::io::Cursor<T>) {
                 // do nothing
             }
         }
@@ -35,7 +35,7 @@ fn impl_brand(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream>
     let struct_ident = &input.ident;
     let ret = quote! {
         impl<T: AsRef<[u8]>> InstructionReader<T> for #struct_ident {
-            fn fetch_operands(&mut self, reader: &mut Cursor<T>) {
+            fn fetch_operands(&mut self, reader: &mut std::io::Cursor<T>) {
                 self.offset = reader.get_i16() as i32;
             }
         }
@@ -56,7 +56,7 @@ fn impl_index8(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream
     let struct_ident = &input.ident;
     let ret = quote! {
         impl<T: AsRef<[u8]>> InstructionReader<T> for #struct_ident {
-            fn fetch_operands(&mut self, reader: &mut Cursor<T>) {
+            fn fetch_operands(&mut self, reader: &mut std::io::Cursor<T>) {
                 self.index = reader.get_u8() as usize;
             }
         }
@@ -77,7 +77,7 @@ fn impl_index16(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStrea
     let struct_ident = &input.ident;
     let ret = quote! {
         impl<T: AsRef<[u8]>> InstructionReader<T> for #struct_ident {
-            fn fetch_operands(&mut self, reader: &mut Cursor<T>) {
+            fn fetch_operands(&mut self, reader: &mut std::io::Cursor<T>) {
                 self.index = reader.get_u16() as u32;
             }
         }

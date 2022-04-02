@@ -5,7 +5,7 @@ use std::sync::Arc;
 mod heap;
 mod thread;
 
-pub use crate::rtda::heap::{Class, ClassLoader, Method};
+pub use crate::rtda::heap::{Class, ClassLoader, Method, Constant, ConstantPool};
 pub use crate::rtda::thread::Thread;
 pub use heap::Object;
 
@@ -103,6 +103,10 @@ impl Frame {
 
     pub fn thread(&mut self) -> Arc<RefCell<Thread>> {
         self.thread.clone()
+    }
+
+    pub fn method(&mut self) -> Arc<RefCell<Method>> {
+        self.method.clone()
     }
 
     pub fn branch(&mut self, offset: i32) {
@@ -351,7 +355,11 @@ mod tests {
         local_var.set_long(4, -2997924580);
         local_var.set_float(6, std::f64::consts::PI as f32);
         local_var.set_double(7, std::f64::consts::E);
-        let object = &mut Object::new(1) as *mut Object;
+        let object = &mut Object {
+            class: NonNull::dangling(),
+            fields: Vec::new(),
+            marker: PhantomData
+        } as *mut Object;
         local_var.set_ref(9, object);
         assert_eq!(local_var.get_int(0), 100);
         assert_eq!(local_var.get_int(1), -100);
@@ -371,7 +379,11 @@ mod tests {
         operand_stack.push_long(-2997924580);
         operand_stack.push_float(std::f64::consts::PI as f32);
         operand_stack.push_double(std::f64::consts::E);
-        let object = &mut Object::new(1) as *mut Object;
+        let object = &mut Object{
+            class: NonNull::dangling(),
+            fields: Vec::new(),
+            marker: PhantomData
+        } as *mut Object;
         operand_stack.push_ref(object);
         assert_eq!(operand_stack.pop_ref(), object);
         assert_eq!(operand_stack.pop_double(), std::f64::consts::E);

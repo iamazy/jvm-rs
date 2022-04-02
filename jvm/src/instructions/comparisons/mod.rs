@@ -2,7 +2,6 @@ use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::Frame;
 use bytes::Buf;
 use jvm_macros::Branch;
-use std::io::Cursor;
 
 macro_rules! register_if_cmp {
     ($(($inst:ident, $func:ident, $op:tt)),*) => {
@@ -14,7 +13,7 @@ macro_rules! register_if_cmp {
             }
 
             impl InstructionExecutor for $inst {
-                fn execute(&self, frame: &mut Frame) {
+                fn execute(&self, frame: &mut crate::rtda::Frame) {
                     let val2 = frame.operand_stack_mut().$func();
                     let val1 = frame.operand_stack_mut().$func();
                     if val1 $op val2 {

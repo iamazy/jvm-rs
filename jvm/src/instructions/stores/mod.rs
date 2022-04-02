@@ -2,7 +2,6 @@ use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::Frame;
 use bytes::Buf;
 use jvm_macros::{Index8, NoOperand};
-use std::io::Cursor;
 
 macro_rules! register_store_fn {
     ($(($fn_name:ident, $pop_fn:ident, $set_fn:ident)),*) => {

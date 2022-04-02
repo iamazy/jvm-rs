@@ -1,7 +1,6 @@
 use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::Frame;
 use jvm_macros::NoOperand;
-use std::io::Cursor;
 use std::ptr;
 
 macro_rules! register_const {

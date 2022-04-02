@@ -64,7 +64,7 @@ pub struct FieldRef {
 impl FieldRef {
     pub fn resolve_field(&mut self) -> anyhow::Result<Arc<RefCell<Field>>> {
         if self.field.is_none() {
-            self.resolve_field_ref();
+            let _ = self.resolve_field_ref();
         }
         Ok(self.field.clone().unwrap())
     }
@@ -230,6 +230,10 @@ impl ConstantPool {
 
     pub fn get(&self, index: usize) -> &Constant {
         &self.consts[index]
+    }
+
+    pub fn get_mut(&mut self, index: usize) -> &mut Constant {
+        &mut self.consts[index]
     }
 
     pub fn get_utf8(&self, index: usize) -> Vec<u8> {

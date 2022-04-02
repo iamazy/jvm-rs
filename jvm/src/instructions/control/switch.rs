@@ -1,7 +1,6 @@
 use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::Frame;
 use bytes::Buf;
-use std::io::Cursor;
 
 #[derive(Default, Debug)]
 #[allow(non_camel_case_types)]
@@ -13,7 +12,7 @@ pub struct TABLE_SWITCH {
 }
 
 impl<T: AsRef<[u8]>> InstructionReader<T> for TABLE_SWITCH {
-    fn fetch_operands(&mut self, reader: &mut Cursor<T>) {
+    fn fetch_operands(&mut self, reader: &mut std::io::Cursor<T>) {
         while reader.position() % 4 != 0 {
             reader.get_u8();
         }
@@ -53,7 +52,7 @@ impl<T> InstructionReader<T> for LOOKUP_SWITCH
 where
     T: AsRef<[u8]> + std::convert::AsRef<[u8]>,
 {
-    fn fetch_operands(&mut self, reader: &mut Cursor<T>) {
+    fn fetch_operands(&mut self, reader: &mut std::io::Cursor<T>) {
         while reader.position() % 4 != 0 {
             reader.get_u8();
         }

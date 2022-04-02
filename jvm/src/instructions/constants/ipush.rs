@@ -1,6 +1,5 @@
 use crate::instructions::{InstructionExecutor, InstructionReader};
 use bytes::Buf;
-use std::io::Cursor;
 
 #[derive(Default, Debug)]
 pub struct BIPUSH {
@@ -8,7 +7,7 @@ pub struct BIPUSH {
 }
 
 impl<T: AsRef<[u8]>> InstructionReader<T> for BIPUSH {
-    fn fetch_operands(&mut self, reader: &mut Cursor<T>) {
+    fn fetch_operands(&mut self, reader: &mut std::io::Cursor<T>) {
         self.val = reader.get_i8();
     }
 }
@@ -25,7 +24,7 @@ pub struct SIPUSH {
 }
 
 impl<T: AsRef<[u8]>> InstructionReader<T> for SIPUSH {
-    fn fetch_operands(&mut self, reader: &mut Cursor<T>) {
+    fn fetch_operands(&mut self, reader: &mut std::io::Cursor<T>) {
         self.val = reader.get_i16();
     }
 }

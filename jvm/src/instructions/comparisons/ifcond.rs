@@ -2,7 +2,6 @@ use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::Frame;
 use bytes::Buf;
 use jvm_macros::Branch;
-use std::io::Cursor;
 
 macro_rules! register_ifcond {
     ($(($inst:ident, $sign:tt)),*) => {

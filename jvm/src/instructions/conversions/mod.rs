@@ -1,7 +1,6 @@
 use crate::instructions::{InstructionExecutor, InstructionReader};
 use crate::rtda::Frame;
 use jvm_macros::NoOperand;
-use std::io::Cursor;
 
 macro_rules! register_conversion {
     ($(($inst:ident, $pop_fn:ident, $push_fn:ident, $typ:ty)),*) => {
