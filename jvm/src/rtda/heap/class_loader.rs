@@ -90,11 +90,11 @@ mod tests {
         assert_eq!(class.super_class_name.as_ref().unwrap(), "java/lang/Object");
         assert_eq!(class.fields.len(), 3);
         for field in class.fields.iter().as_ref() {
-            println!("field: {}", field.name);
+            println!("field: {}", field.borrow().name);
         }
 
         for method in class.methods.iter().as_ref() {
-            println!("method: {}", method.name);
+            println!("method: {}", method.borrow().name);
         }
 
         let super_class = unsafe { class.super_class.unwrap().as_ref() };
@@ -102,11 +102,11 @@ mod tests {
         assert_eq!(super_class.super_class_name, None);
         assert_eq!(super_class.fields.len(), 0);
         for field in super_class.fields.iter().as_ref() {
-            println!("field: {}", field.name);
+            println!("field: {}", field.borrow().name);
         }
 
         for method in super_class.methods.iter().as_ref() {
-            println!("method: {}", method.name);
+            println!("method: {}", method.borrow().name);
         }
     }
 

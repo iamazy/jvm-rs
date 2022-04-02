@@ -10,10 +10,10 @@ pub struct Method {
     pub name: String,
     pub descriptor: String,
     pub class: NonNull<Class>,
-    max_stack: usize,
-    max_locals: usize,
-    code: Option<Vec<u8>>,
-    marker: PhantomData<Box<Class>>,
+    pub(crate) max_stack: usize,
+    pub(crate) max_locals: usize,
+    pub(crate) code: Option<Vec<u8>>,
+    pub(crate) marker: PhantomData<Box<Class>>,
 }
 
 impl Method {
@@ -106,7 +106,7 @@ impl Method {
             if !self.is_private() {
                 return this.package_name() == class.package_name();
             }
-            this.name == class.name
+            NonNull::from(this) == NonNull::from(class)
         }
     }
 

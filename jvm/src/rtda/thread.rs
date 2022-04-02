@@ -1,4 +1,4 @@
-use crate::rtda::{Frame, Stack};
+use crate::rtda::{Frame, Method, Stack};
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -37,7 +37,7 @@ impl Thread {
         self.pc = pc;
     }
 
-    pub fn new_frame(thread: Arc<RefCell<Thread>>, max_locals: usize, max_stack: usize) -> Frame {
-        Frame::new(thread, max_locals, max_stack)
+    pub fn new_frame(thread: Arc<RefCell<Thread>>, method: Arc<RefCell<Method>>) -> Frame {
+        Frame::new(thread, method)
     }
 }

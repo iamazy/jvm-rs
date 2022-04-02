@@ -14,6 +14,7 @@ mod math;
 mod opcode;
 mod stack;
 mod stores;
+mod refs;
 
 #[rustfmt::skip]
 pub use {

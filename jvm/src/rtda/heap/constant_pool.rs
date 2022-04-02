@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::rtda::heap::class::Class;
 use crate::rtda::heap::field::Field;
 use crate::rtda::heap::method::Method;
@@ -5,6 +6,7 @@ use anyhow::anyhow;
 use classfile::{get_str, ConstantPoolRef};
 use jvm_macros::SymbolRef;
 use std::ptr::NonNull;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum Constant {
@@ -56,25 +58,31 @@ pub struct FieldRef {
     pub class_name: String,
     pub constant_pool: NonNull<ConstantPool>,
     class: Option<NonNull<Class>>,
-    field: Option<NonNull<Field>>,
+    field: Option<Arc<RefCell<Field>>>,
 }
 
 impl FieldRef {
+
+    pub fn resolve_field(&mut self) -> anyhow::Result<Arc<RefCell<Field>>> {
+        if self.field.is_none() {
+            self.resolve_field_ref();
+        }
+        Ok(self.field.clone().unwrap())
+    }
+
     pub fn resolve_field_ref(&mut self) -> anyhow::Result<()> {
         unsafe {
-            let class = self.constant_pool.as_ref().class.as_ref();
-            let field = self
-                .class
-                .unwrap()
-                .as_ref()
+            let cp_class = self.constant_pool.as_ref().class.as_ref();
+            let self_class = self.resolved_class()?;
+            let field = self_class.as_ref()
                 .look_up_field(self.name.as_str(), self.descriptor.as_str());
             if field.is_none() {
                 panic!("java.lang.NoSuchFieldError");
             }
-            if !field.unwrap().is_accessible_to(class) {
+            if !field.clone().unwrap().borrow().is_accessible_to(cp_class) {
                 panic!("java.lang.IllegalAccessError");
             }
-            self.field = Some(NonNull::from(field.unwrap()));
+            self.field = field;
             Ok(())
         }
     }

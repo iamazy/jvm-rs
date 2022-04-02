@@ -1,19 +1,17 @@
 use crate::instructions::new_inst;
-use crate::rtda::Thread;
+use crate::rtda::{Class, Method, Thread};
 use bytes::Buf;
 use classfile::get_utf8;
 use std::cell::RefCell;
 use std::io::Cursor;
 use std::sync::Arc;
 
-pub fn interpret(method_info: &classfile::MethodInfo) {
-    if let Some(code) = method_info.code_attribute() {
+pub fn interpret(method: Arc<RefCell<Method>>) {
+    if let Some(code) = method.borrow().code() {
         let thread = Arc::new(RefCell::new(Thread::new()));
-        let max_locals = code.max_locals as usize;
-        let max_stack = code.max_stack as usize;
-        let frame = Thread::new_frame(thread.clone(), max_locals, max_stack);
+        let frame = Thread::new_frame(thread.clone(), method.clone());
         thread.borrow_mut().push_frame(frame);
-        loop_interpret(thread, &mut Cursor::new(code.code));
+        loop_interpret(thread, &mut Cursor::new(code));
     }
 }
 
@@ -37,13 +35,10 @@ fn loop_interpret<T: AsRef<[u8]>>(thread: Arc<RefCell<Thread>>, cursor: &mut Cur
     }
 }
 
-fn get_main_method<'a>(cf: &'a classfile::ClassFile) -> Option<&'a classfile::MethodInfo<'a>> {
-    for method in cf.methods.iter() {
-        let method_name = get_utf8(cf.constant_pool.clone(), method.name_index as usize);
-        let method_descriptor =
-            get_utf8(cf.constant_pool.clone(), method.descriptor_index as usize);
-        if method_name == b"main" && method_descriptor == b"([Ljava/lang/String;)V" {
-            return Some(method);
+fn get_main_method(class: &Class) -> Option<Arc<RefCell<Method>>> {
+    for method in class.methods.iter() {
+        if method.borrow().name.as_str() == "main" && method.borrow().descriptor.as_str() == "([Ljava/lang/String;)V" {
+            return Some(method.clone());
         }
     }
     None
@@ -54,17 +49,16 @@ mod tests {
     use crate::classpath::{ClassPath, Entry};
     use crate::interpreter;
     use crate::interpreter::get_main_method;
+    use crate::rtda::ClassLoader;
 
     #[test]
     #[should_panic]
     fn test_gauss() {
         let class_path = ClassPath::new("".to_string(), "../data/jvm8".to_string());
-        if let Ok(class_bytes) = class_path.read_class("GaussTest") {
-            if let Ok((_, class_file)) = classfile::parse(class_bytes.as_slice()) {
-                if let Some(method) = get_main_method(&class_file) {
-                    interpreter::interpret(&method);
-                }
-            }
+        let class_loader = ClassLoader::new(class_path);
+        let class = class_loader.load_class("GaussTest").unwrap();
+        if let Some(method) = get_main_method(class) {
+            interpreter::interpret(method.clone());
         }
     }
 }

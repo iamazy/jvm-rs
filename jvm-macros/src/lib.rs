@@ -112,12 +112,12 @@ fn impl_symbol_ref(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenSt
         }
 
         impl #struct_ident {
-            pub fn resolved_class(&mut self) -> anyhow::Result<&Class> {
+            pub fn resolved_class(&mut self) -> anyhow::Result<NonNull<Class>> {
                 unsafe {
                     if self.class.is_none() {
                         self.resolved_class_ref()?;
                     }
-                    Ok(self.class.unwrap().as_ref())
+                    Ok(self.class.unwrap().clone())
                 }
             }
         }

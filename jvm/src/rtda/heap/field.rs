@@ -103,7 +103,7 @@ impl Field {
             if !self.is_private() {
                 return this.package_name() == class.package_name();
             }
-            this.name == class.name
+            NonNull::from(this) == NonNull::from(class)
         }
     }
 }

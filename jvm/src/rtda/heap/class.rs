@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::rtda::heap::access_flags::AccessFlag;
 use crate::rtda::heap::class_loader::ClassLoader;
 use crate::rtda::heap::constant_pool::{Constant, ConstantPool};
@@ -6,6 +7,7 @@ use crate::rtda::heap::method::{new_methods, Method};
 use crate::rtda::LocalVars;
 use classfile::{get_str, ClassFile};
 use std::ptr::NonNull;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Class {
@@ -15,8 +17,8 @@ pub struct Class {
     pub super_class_name: Option<String>,
     pub interface_names: Vec<String>,
     pub constant_pool: NonNull<ConstantPool>,
-    pub fields: Vec<Field>,
-    pub methods: Vec<Method>,
+    pub fields: Vec<Arc<RefCell<Field>>>,
+    pub methods: Vec<Arc<RefCell<Method>>>,
     pub loader: NonNull<ClassLoader>,
     pub super_class: Option<NonNull<Class>>,
     pub interfaces: Vec<NonNull<Class>>,
@@ -77,13 +79,13 @@ impl Class {
         // initialize fields
         let fields = new_fields(&mut class, &class_file.fields);
         for field in fields {
-            class.fields.push(field);
+            class.fields.push(Arc::new(RefCell::new(field)));
         }
 
         // initialize methods
         let methods = new_methods(&mut class, &class_file.methods);
         for method in methods {
-            class.methods.push(method);
+            class.methods.push(Arc::new(RefCell::new(method)));
         }
         class
     }
@@ -94,6 +96,7 @@ impl Class {
             slot_id = unsafe { self.super_class.unwrap().as_ref().instance_slot_count };
         }
         for field in self.fields.iter_mut() {
+            let mut field = field.borrow_mut();
             if !field.is_static() {
                 field.slot_id = slot_id;
                 slot_id += 1;
@@ -108,6 +111,7 @@ impl Class {
     pub fn calc_static_field_slot_ids(&mut self) {
         let mut slot_id: usize = 0;
         for field in self.fields.iter_mut() {
+            let mut field = field.borrow_mut();
             if field.is_static() {
                 field.slot_id = slot_id;
                 slot_id += 1;
@@ -122,6 +126,7 @@ impl Class {
     pub fn alloc_init_static_vars(&mut self) {
         self.static_vars = Some(LocalVars::new(self.static_slot_count));
         for field in self.fields.iter_mut().as_ref() {
+            let field = field.borrow();
             if field.is_static() && field.is_final() && field.const_value_index > 0 {
                 match field.descriptor.as_str() {
                     "Z" | "B" | "C" | "S" | "I" => {
@@ -246,10 +251,10 @@ impl Class {
         None
     }
 
-    pub fn look_up_field(&self, name: &str, descriptor: &str) -> Option<&Field> {
+    pub fn look_up_field(&self, name: &str, descriptor: &str) -> Option<Arc<RefCell<Field>>> {
         for field in self.fields.iter() {
-            if field.name == name && field.descriptor == descriptor {
-                return Some(field);
+            if field.borrow().name == name && field.borrow().descriptor == descriptor {
+                return Some(field.clone());
             }
         }
         unsafe {
@@ -266,7 +271,7 @@ impl Class {
                     .look_up_field(name, descriptor);
             }
         }
-        return None;
+        None
     }
 }
 
@@ -285,10 +290,10 @@ mod tests {
                 assert_eq!(class.super_class_name.unwrap(), "java/lang/Object");
                 assert_eq!(class.fields.len(), 3);
                 for field in class.fields.iter().as_ref() {
-                    println!("field: {}", field.name);
+                    println!("field: {}", field.borrow().name);
                 }
                 for method in class.methods.iter().as_ref() {
-                    println!("method: {}", method.name);
+                    println!("method: {}", method.borrow().name);
                 }
             }
         }

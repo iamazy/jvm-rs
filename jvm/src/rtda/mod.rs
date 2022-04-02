@@ -6,6 +6,7 @@ mod heap;
 mod thread;
 
 pub use crate::rtda::thread::Thread;
+pub use crate::rtda::heap::{Method, ClassLoader, Class};
 pub use heap::Object;
 
 #[derive(Debug)]
@@ -60,16 +61,18 @@ pub struct Frame {
     local_vars: LocalVars,
     operand_stack: OperandStack,
     thread: Arc<RefCell<Thread>>,
+    method: Arc<RefCell<Method>>,
     next_pc: isize,
 }
 
 impl Frame {
-    pub fn new(thread: Arc<RefCell<Thread>>, max_locals: usize, max_stack: usize) -> Frame {
+    pub fn new(thread: Arc<RefCell<Thread>>, method: Arc<RefCell<Method>>) -> Frame {
         Frame {
             lower: None,
-            local_vars: LocalVars::new(max_locals),
-            operand_stack: OperandStack::new(max_stack),
+            local_vars: LocalVars::new(method.clone().borrow().max_locals()),
+            operand_stack: OperandStack::new(method.clone().borrow().max_stack()),
             thread,
+            method,
             next_pc: 0,
         }
     }
@@ -269,14 +272,26 @@ impl OperandStack {
 #[cfg(test)]
 mod tests {
     use crate::rtda::heap::Object;
-    use crate::rtda::{Frame, LocalVars, OperandStack, Slot, Stack, Thread};
+    use crate::rtda::{Frame, LocalVars, Method, OperandStack, Slot, Stack, Thread};
     use std::cell::RefCell;
+    use std::marker::PhantomData;
     use std::ptr;
+    use std::ptr::NonNull;
     use std::sync::Arc;
 
     fn stack_init() -> Stack {
         let mut stack = Stack::new(10);
         let thread = Arc::new(RefCell::new(Thread::new()));
+        let method = Arc::new(RefCell::new(Method {
+            access_flags: 0,
+            name: "me".to_string(),
+            descriptor: "you".to_string(),
+            class: NonNull::dangling(),
+            max_stack: 0,
+            max_locals: 0,
+            code: None,
+            marker: PhantomData,
+        }));
         for i in 0..10 {
             let mut local_vars = vec![];
             for j in 0..i {
@@ -291,6 +306,7 @@ mod tests {
                 local_vars: LocalVars(local_vars),
                 operand_stack: OperandStack::new(0),
                 thread: thread.clone(),
+                method: method.clone(),
                 next_pc: 0,
             };
             stack.push(frame);

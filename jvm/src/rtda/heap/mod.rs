@@ -7,3 +7,6 @@ mod method;
 mod object;
 
 pub use object::Object;
+pub use method::Method;
+pub use class_loader::ClassLoader;
+pub use class::Class;
