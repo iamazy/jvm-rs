@@ -3,7 +3,7 @@ use crate::rtda::{Constant, Object};
 use bytes::Buf;
 use jvm_macros::Index8;
 
-#[derive(Index8)]
+#[derive(Debug, Default, Index8)]
 pub struct NEW {
     index: usize,
 }

@@ -62,11 +62,11 @@ pub struct FieldRef {
 }
 
 impl FieldRef {
-    pub fn resolve_field(&mut self) -> anyhow::Result<Arc<RefCell<Field>>> {
+    pub fn resolve_field(&mut self) -> Arc<RefCell<Field>> {
         if self.field.is_none() {
             let _ = self.resolve_field_ref();
         }
-        Ok(self.field.clone().unwrap())
+        self.field.clone().unwrap()
     }
 
     pub fn resolve_field_ref(&mut self) -> anyhow::Result<()> {

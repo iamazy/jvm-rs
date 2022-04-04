@@ -122,7 +122,7 @@ pub struct Slot {
     r#ref: *mut Object,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LocalVars(Vec<Slot>);
 
 impl LocalVars {
@@ -357,7 +357,7 @@ mod tests {
         local_var.set_double(7, std::f64::consts::E);
         let object = &mut Object {
             class: NonNull::dangling(),
-            fields: Vec::new(),
+            fields: LocalVars(Vec::new()),
             marker: PhantomData,
         } as *mut Object;
         local_var.set_ref(9, object);
@@ -381,7 +381,7 @@ mod tests {
         operand_stack.push_double(std::f64::consts::E);
         let object = &mut Object {
             class: NonNull::dangling(),
-            fields: Vec::new(),
+            fields: LocalVars(Vec::new()),
             marker: PhantomData,
         } as *mut Object;
         operand_stack.push_ref(object);

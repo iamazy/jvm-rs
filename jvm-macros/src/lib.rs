@@ -78,7 +78,7 @@ fn impl_index16(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStrea
     let ret = quote! {
         impl<T: AsRef<[u8]>> InstructionReader<T> for #struct_ident {
             fn fetch_operands(&mut self, reader: &mut std::io::Cursor<T>) {
-                self.index = reader.get_u16() as u32;
+                self.index = reader.get_u16() as usize;
             }
         }
     };

@@ -3,7 +3,7 @@ use crate::rtda::heap::class_loader::ClassLoader;
 use crate::rtda::heap::constant_pool::{Constant, ConstantPool};
 use crate::rtda::heap::field::{new_fields, Field};
 use crate::rtda::heap::method::{new_methods, Method};
-use crate::rtda::LocalVars;
+use crate::rtda::{LocalVars, Slot};
 use classfile::{get_str, ClassFile};
 use std::cell::RefCell;
 use std::ptr::NonNull;
@@ -24,7 +24,7 @@ pub struct Class {
     pub interfaces: Vec<NonNull<Class>>,
     pub instance_slot_count: usize,
     pub static_slot_count: usize,
-    pub static_vars: Option<LocalVars>,
+    static_vars: LocalVars,
 }
 
 impl Class {
@@ -69,7 +69,7 @@ impl Class {
             interfaces: Vec::with_capacity(class_file.interfaces.len()),
             instance_slot_count: 0,
             static_slot_count: 0,
-            static_vars: None,
+            static_vars: LocalVars::new(0),
         };
 
         let class_ptr = NonNull::from(&mut class);
@@ -124,7 +124,13 @@ impl Class {
     }
 
     pub fn alloc_init_static_vars(&mut self) {
-        self.static_vars = Some(LocalVars::new(self.static_slot_count));
+        self.static_vars.0.resize(
+            self.static_slot_count,
+            Slot {
+                num: 0,
+                r#ref: std::ptr::null_mut(),
+            },
+        );
         for field in self.fields.iter_mut().as_ref() {
             let field = field.borrow();
             if field.is_static() && field.is_final() && field.const_value_index > 0 {
@@ -135,10 +141,7 @@ impl Class {
                                 .as_ref()
                                 .get(field.const_value_index as usize)
                         } {
-                            self.static_vars
-                                .as_mut()
-                                .unwrap()
-                                .set_int(field.slot_id, *int);
+                            self.static_vars.set_int(field.slot_id, *int);
                         }
                     }
                     "J" => {
@@ -147,10 +150,7 @@ impl Class {
                                 .as_ref()
                                 .get(field.const_value_index as usize)
                         } {
-                            self.static_vars
-                                .as_mut()
-                                .unwrap()
-                                .set_long(field.slot_id, *long);
+                            self.static_vars.set_long(field.slot_id, *long);
                         }
                     }
                     "F" => {
@@ -159,10 +159,7 @@ impl Class {
                                 .as_ref()
                                 .get(field.const_value_index as usize)
                         } {
-                            self.static_vars
-                                .as_mut()
-                                .unwrap()
-                                .set_float(field.slot_id, *float);
+                            self.static_vars.set_float(field.slot_id, *float);
                         }
                     }
                     "D" => {
@@ -171,10 +168,7 @@ impl Class {
                                 .as_ref()
                                 .get(field.const_value_index as usize)
                         } {
-                            self.static_vars
-                                .as_mut()
-                                .unwrap()
-                                .set_double(field.slot_id, *double);
+                            self.static_vars.set_double(field.slot_id, *double);
                         }
                     }
                     _ => {
@@ -244,6 +238,48 @@ impl Class {
         }
     }
 
+    pub fn is_sub_interface_of(&self, interface: NonNull<Class>) -> bool {
+        unsafe {
+            for super_interface in self.interfaces.iter() {
+                if super_interface.as_ref().is_sub_interface_of(interface)
+                    || *super_interface == interface
+                {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    pub fn is_implements(&self, interface: NonNull<Class>) -> bool {
+        let self_class = NonNull::from(self);
+        unsafe {
+            if self_class.as_ref().is_sub_interface_of(interface) {
+                return true;
+            }
+            if let Some(super_class) = self_class.as_ref().super_class {
+                if super_class.as_ref().is_sub_interface_of(interface) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    pub fn is_assignable_from(&self, class: NonNull<Class>) -> bool {
+        let self_class = NonNull::from(self);
+        if self_class == class {
+            return true;
+        }
+        unsafe {
+            if !self_class.as_ref().is_interface() {
+                class.as_ref().is_sub_class_of(self_class)
+            } else {
+                class.as_ref().is_implements(self_class)
+            }
+        }
+    }
+
     pub fn package_name(&self) -> Option<&str> {
         if let Some(pos) = self.name.rfind('/') {
             return Some(self.name[..pos].as_ref());
@@ -272,6 +308,10 @@ impl Class {
             }
         }
         None
+    }
+
+    pub fn static_vars_mut(&mut self) -> &mut LocalVars {
+        &mut self.static_vars
     }
 }
 
