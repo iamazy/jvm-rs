@@ -5,6 +5,7 @@ use anyhow::anyhow;
 use classfile::{get_str, ConstantPoolRef};
 use jvm_macros::SymbolRef;
 use std::cell::RefCell;
+use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
@@ -37,6 +38,7 @@ pub struct ClassRef {
     pub name: String,
     constant_pool: NonNull<ConstantPool>,
     class: Option<NonNull<Class>>,
+    _marker: PhantomData<Box<Class>>,
 }
 
 #[derive(Debug, Clone, SymbolRef)]
@@ -47,6 +49,7 @@ pub struct MethodRef {
     constant_pool: NonNull<ConstantPool>,
     class: Option<NonNull<Class>>,
     method: Option<NonNull<Method>>,
+    _marker: PhantomData<Box<Class>>,
 }
 
 pub type InterfaceMethodRef = MethodRef;
@@ -59,6 +62,7 @@ pub struct FieldRef {
     pub constant_pool: NonNull<ConstantPool>,
     class: Option<NonNull<Class>>,
     field: Option<Arc<RefCell<Field>>>,
+    _marker: PhantomData<Box<Class>>,
 }
 
 impl FieldRef {
@@ -92,6 +96,7 @@ impl FieldRef {
 pub struct ConstantPool {
     pub class: NonNull<Class>,
     pub consts: Vec<Constant>,
+    _marker: PhantomData<Box<Class>>,
 }
 
 impl ConstantPool {
@@ -99,6 +104,7 @@ impl ConstantPool {
         let mut constant_pool = Self {
             class: NonNull::dangling(),
             consts: Vec::with_capacity(cp.len()),
+            _marker: PhantomData,
         };
         for constant in cp.iter() {
             match constant {
@@ -152,6 +158,7 @@ impl ConstantPool {
                         name: get_str(cp.clone(), *name_index as usize),
                         constant_pool: NonNull::from(&mut constant_pool),
                         class: None,
+                        _marker: PhantomData,
                     });
                     constant_pool.consts.push(constant);
                 }
@@ -171,6 +178,7 @@ impl ConstantPool {
                             constant_pool: NonNull::from(&mut constant_pool),
                             class: None,
                             field: None,
+                            _marker: PhantomData,
                         });
                         constant_pool.consts.push(constant);
                     }
@@ -191,6 +199,7 @@ impl ConstantPool {
                             constant_pool: NonNull::from(&mut constant_pool),
                             class: None,
                             method: None,
+                            _marker: PhantomData,
                         });
                         constant_pool.consts.push(constant);
                     }
@@ -212,6 +221,7 @@ impl ConstantPool {
                                 constant_pool: NonNull::from(&mut constant_pool),
                                 class: None,
                                 method: None,
+                                _marker: PhantomData,
                             });
                         constant_pool.consts.push(interface_method_ref);
                     }
